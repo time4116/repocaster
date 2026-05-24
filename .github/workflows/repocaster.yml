@@ -3,6 +3,14 @@ name: Repocaster
 on:
   workflow_dispatch:
     inputs:
+      repository:
+        description: "Repository to analyze, owner/name. Defaults to this repo."
+        required: false
+        default: ""
+      ref:
+        description: "Optional branch, tag, or SHA to analyze. Defaults to the repository default ref."
+        required: false
+        default: ""
       mode:
         description: "architecture or focus"
         required: false
@@ -25,11 +33,20 @@ jobs:
     if: github.actor == 'time4116'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repocaster
+        uses: actions/checkout@v4
+        with:
+          path: repocaster-action
+      - name: Checkout target repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.repository || github.repository }}
+          ref: ${{ inputs.ref }}
+          path: target-repo
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install -e .
+      - run: pip install -e repocaster-action
       - name: Install ffmpeg
         if: inputs.dry_run != 'true'
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
@@ -41,7 +58,7 @@ jobs:
           aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
       - name: Generate briefing
         run: |
-          args=(--repo "$GITHUB_WORKSPACE" --mode "$REPOCASTER_MODE" --focus "$REPOCASTER_FOCUS" --output output/repocaster.mp3)
+          args=(--repo "$GITHUB_WORKSPACE/target-repo" --mode "$REPOCASTER_MODE" --focus "$REPOCASTER_FOCUS" --output output/repocaster.mp3)
           if [ "$REPOCASTER_DRY_RUN" = "true" ]; then
             args+=(--dry-run)
           fi

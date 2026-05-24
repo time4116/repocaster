@@ -65,7 +65,7 @@ Before running non dry-run generation, follow the one-time setup in [`SETUP.md`]
 
 ## GitHub Actions mode
 
-The workflow is intentionally manual and owner guarded.
+The workflow is intentionally manual and owner guarded. It checks out Repocaster separately from the target repository, so `repository` can point at another `owner/name` repo when you want to generate a briefing for something other than `time4116/repocaster`.
 
 ```yaml
 name: Repocaster
@@ -76,16 +76,19 @@ on:
       repository:
         description: "Repository to analyze, owner/name. Defaults to this repo."
         required: false
+        default: ""
       ref:
-        description: "Branch, tag, or SHA. Defaults to current SHA."
+        description: "Optional branch, tag, or SHA to analyze. Defaults to the repository default ref."
         required: false
-      focus:
-        description: "Optional deep dive topic"
-        required: false
+        default: ""
       mode:
         description: "architecture or focus"
         required: false
         default: "architecture"
+      focus:
+        description: "Optional focus topic, e.g. how LangChain is used"
+        required: false
+        default: ""
 
 jobs:
   repocaster:
@@ -95,14 +98,23 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repocaster
+        uses: actions/checkout@v4
+        with:
+          path: repocaster-action
+      - name: Checkout target repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.repository || github.repository }}
+          ref: ${{ inputs.ref }}
+          path: target-repo
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install .
+      - run: pip install -e repocaster-action
       - run: |
           repocaster \
-            --repo "$GITHUB_WORKSPACE" \
+            --repo "$GITHUB_WORKSPACE/target-repo" \
             --mode "$REPOCASTER_MODE" \
             --focus "$REPOCASTER_FOCUS" \
             --output output/repocaster.mp3
