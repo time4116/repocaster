@@ -72,12 +72,37 @@ def trim_script_to_word_limit(script: PodcastScript, max_words: int) -> PodcastS
     )
 
 
+def _looks_like_outro(segment: ScriptSegment) -> bool:
+    text = segment.text.lower()
+    outro_markers = (
+        "to wrap up",
+        "big takeaway",
+        "thanks for listening",
+        "in summary",
+        "the takeaway",
+        "so the takeaway",
+        "final thought",
+    )
+    return any(marker in text for marker in outro_markers)
+
+
 def trim_script_to_segment_limit(script: PodcastScript, max_segments: int) -> PodcastScript:
-    """Trim model output to the configured segment ceiling as a last-resort guardrail."""
+    """Trim model output to the configured segment ceiling as a last-resort guardrail.
+
+    If the model included a recognizable closing segment, preserve it. A briefing that
+    loses a middle detail is better than one that ends abruptly because the outro was
+    sliced off.
+    """
     if len(script.segments) <= max_segments:
         return script
 
-    trimmed_segments = script.segments[:max_segments]
+    if max_segments <= 1:
+        trimmed_segments = script.segments[:max_segments]
+    elif _looks_like_outro(script.segments[-1]):
+        trimmed_segments = [*script.segments[: max_segments - 1], script.segments[-1]]
+    else:
+        trimmed_segments = script.segments[:max_segments]
+
     return script.model_copy(
         update={
             "segments": trimmed_segments,

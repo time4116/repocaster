@@ -102,6 +102,42 @@ def test_generate_script_with_bedrock_trims_over_segmented_model_output():
     assert [segment.text for segment in script.segments] == ["one two", "three four"]
 
 
+def test_generate_script_with_bedrock_preserves_outro_when_trimming_segments():
+    payload = {
+        "title": "Repocaster",
+        "target_duration_minutes": 6,
+        "estimated_word_count": 10,
+        "segments": [
+            {"speaker": "HOST_A", "text": "opening context"},
+            {"speaker": "HOST_B", "text": "middle detail"},
+            {"speaker": "HOST_A", "text": "extra implementation"},
+            {"speaker": "HOST_B", "text": "So to wrap up, this is the big takeaway."},
+        ],
+    }
+    fake_client = Mock()
+    fake_client.converse.return_value = {
+        "output": {"message": {"content": [{"text": json.dumps(payload)}]}}
+    }
+    settings = Settings(
+        allowed_repos=("time4116/repocaster",),
+        allowed_users=("time4116",),
+        min_script_words=2,
+        max_script_words=100,
+        max_segments=3,
+        bedrock_model_id="test-model",
+    )
+
+    with patch("repocaster.bedrock.boto3.client", return_value=fake_client):
+        script = generate_script_with_bedrock("prompt", settings)
+
+    assert len(script.segments) == settings.max_segments
+    assert [segment.text for segment in script.segments] == [
+        "opening context",
+        "middle detail",
+        "So to wrap up, this is the big takeaway.",
+    ]
+
+
 def test_normalize_spoken_terms_rewrites_risky_tts_phrases():
     script = PodcastScript(
         title="LangGraph and StateGraph",
