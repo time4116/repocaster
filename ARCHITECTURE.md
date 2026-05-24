@@ -43,9 +43,9 @@ Worker Lambda
   - post GitHub comment
 ```
 
-## Action mode
+## Manual workflow mode
 
-Action mode is for the repository owner only. It is a manual workflow, uses repository secrets, and does not run on pull requests.
+Manual workflow mode is for the repository owner only. It runs from the Repocaster repo, uses repository secrets, accepts optional target repository/ref inputs, and does not run on pull requests.
 
 ```text
 workflow_dispatch
@@ -54,7 +54,7 @@ workflow_dispatch
 owner guard: github.actor == time4116
         │
         ▼
-checkout repo
+checkout Repocaster and target repo
         │
         ▼
 repocaster CLI

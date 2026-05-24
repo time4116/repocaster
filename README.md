@@ -5,7 +5,7 @@ Turn a GitHub repository into a focused AI generated audio briefing.
 Repocaster runs in two modes:
 
 1. **GitHub App mode** — comment `/podcast` or `/podcast focus <topic>` on an issue or PR. Repocaster scans the repository, generates a 6 to 8 minute two host briefing, uploads the MP3 to S3, and comments back with a presigned URL.
-2. **Owner only GitHub Actions mode** — manually run a workflow with repository/ref/focus inputs. This uses repo secrets and is intended for personal portfolio/demo use without requiring anyone to install the GitHub App.
+2. **Owner only GitHub Actions workflow** — manually run the workflow in this Repocaster repo with repository/ref/focus inputs. This uses repo secrets and is intended for personal portfolio/demo use without requiring anyone to install the GitHub App.
 
 ## Why
 
@@ -29,15 +29,15 @@ Repocaster is for engineering onboarding, architecture handoffs, and focused cod
 - S3 lifecycle: generated objects expire after 10 days
 - Weekly quota: S3 backed, per repo and optional global limit
 - App mode: repo allowlist and author allowlist required
-- Action mode: manual `workflow_dispatch`, owner guarded, no PR trigger
+- Workflow mode: manual `workflow_dispatch`, owner guarded, no PR trigger
 
 ## High level architecture
 
 ```text
-GitHub comment or manual Action
+GitHub comment or manual workflow
         │
         ▼
-Command parser / action inputs
+Command parser / workflow inputs
         │
         ▼
 Repo scanner + focus aware context pack
@@ -65,7 +65,7 @@ Before running non dry-run generation, follow the one-time setup in [`SETUP.md`]
 
 ## GitHub Actions mode
 
-The workflow is intentionally manual and owner guarded.
+The workflow is intentionally manual and owner guarded. It checks out Repocaster separately from the target repository, so `repository` can point at another `owner/name` repo when you want to generate a briefing for something other than `time4116/repocaster`.
 
 ```yaml
 name: Repocaster
@@ -76,16 +76,19 @@ on:
       repository:
         description: "Repository to analyze, owner/name. Defaults to this repo."
         required: false
+        default: ""
       ref:
-        description: "Branch, tag, or SHA. Defaults to current SHA."
+        description: "Optional branch, tag, or SHA to analyze. Defaults to the repository default ref."
         required: false
-      focus:
-        description: "Optional deep dive topic"
-        required: false
+        default: ""
       mode:
         description: "architecture or focus"
         required: false
         default: "architecture"
+      focus:
+        description: "Optional focus topic, e.g. how LangChain is used"
+        required: false
+        default: ""
 
 jobs:
   repocaster:
@@ -95,14 +98,23 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repocaster
+        uses: actions/checkout@v4
+        with:
+          path: repocaster-action
+      - name: Checkout target repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.repository || github.repository }}
+          ref: ${{ inputs.ref }}
+          path: target-repo
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install .
+      - run: pip install -e repocaster-action
       - run: |
           repocaster \
-            --repo "$GITHUB_WORKSPACE" \
+            --repo "$GITHUB_WORKSPACE/target-repo" \
             --mode "$REPOCASTER_MODE" \
             --focus "$REPOCASTER_FOCUS" \
             --output output/repocaster.mp3

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 from repocaster.bedrock import generate_script_with_bedrock
 from repocaster.config import Settings
-from repocaster.script import PodcastScript, ScriptSegment
+from repocaster.script import PodcastScript, ScriptSegment, build_script_prompt
 
 
 def _settings() -> Settings:
@@ -87,6 +87,45 @@ def test_generate_script_with_bedrock_strips_only_json_code_fence():
     assert script.segments[0].text.endswith("``` markers")
 
 
+def test_settings_default_to_higher_quality_openai_tts_and_female_voices():
+    settings = Settings(allowed_repos=(), allowed_users=())
+
+    assert settings.openai_tts_model == "tts-1-hd"
+    assert settings.openai_voice_a == "nova"
+    assert settings.openai_voice_b == "shimmer"
+
+
+def test_settings_from_env_default_to_higher_quality_openai_tts_and_female_voices(monkeypatch):
+    monkeypatch.delenv("OPENAI_TTS_MODEL", raising=False)
+    monkeypatch.delenv("OPENAI_TTS_VOICE_A", raising=False)
+    monkeypatch.delenv("OPENAI_TTS_VOICE_B", raising=False)
+
+    settings = Settings.from_env()
+
+    assert settings.openai_tts_model == "tts-1-hd"
+    assert settings.openai_voice_a == "nova"
+    assert settings.openai_voice_b == "shimmer"
+
+
+def test_script_prompt_guides_bedrock_toward_spoken_audio_style(tmp_path: Path):
+    from repocaster.context import ContextFile, ContextPack
+
+    pack = ContextPack(
+        repo_path=str(tmp_path),
+        mode="architecture",
+        focus=None,
+        files=(ContextFile(path="README.md", content="# Repocaster", score=100),),
+        total_chars=12,
+    )
+
+    prompt = build_script_prompt(pack, _settings())
+
+    assert "Write for spoken audio, not an essay" in prompt
+    assert "Use short sentences and natural contractions" in prompt
+    assert "Avoid markdown, bullets, headings, and code syntax" in prompt
+    assert "Natural handoffs between hosts" in prompt
+
+
 def test_openai_client_is_reused_for_all_segments(tmp_path: Path):
     from repocaster.audio import synthesize_segments_with_openai
 
@@ -130,6 +169,8 @@ def test_stitch_with_ffmpeg_invokes_concat_command(tmp_path: Path):
 
     args = run.call_args.args[0]
     assert args[0] == "/usr/bin/ffmpeg"
+    assert "-af" in args
+    assert "loudnorm=I=-16:TP=-1.5:LRA=11" in args
     assert str(output) in args
     run.assert_called_once()
 

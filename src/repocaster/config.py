@@ -26,9 +26,9 @@ class Settings:
     s3_retention_days: int = 10
     presigned_url_ttl_seconds: int = 604_800
     bedrock_model_id: str = ""
-    openai_tts_model: str = "tts-1"
-    openai_voice_a: str = "alloy"
-    openai_voice_b: str = "nova"
+    openai_tts_model: str = "tts-1-hd"
+    openai_voice_a: str = "nova"
+    openai_voice_b: str = "shimmer"
     output_bucket: str = ""
 
     @classmethod
@@ -50,9 +50,9 @@ class Settings:
             s3_retention_days=int(os.environ.get("S3_RETENTION_DAYS", "10")),
             presigned_url_ttl_seconds=int(os.environ.get("S3_PRESIGNED_URL_TTL_SECONDS", "604800")),
             bedrock_model_id=os.environ.get("BEDROCK_MODEL_ID", ""),
-            openai_tts_model=os.environ.get("OPENAI_TTS_MODEL", "tts-1"),
-            openai_voice_a=os.environ.get("OPENAI_TTS_VOICE_A", "alloy"),
-            openai_voice_b=os.environ.get("OPENAI_TTS_VOICE_B", "nova"),
+            openai_tts_model=os.environ.get("OPENAI_TTS_MODEL", "tts-1-hd"),
+            openai_voice_a=os.environ.get("OPENAI_TTS_VOICE_A", "nova"),
+            openai_voice_b=os.environ.get("OPENAI_TTS_VOICE_B", "shimmer"),
             output_bucket=os.environ.get("OUTPUT_BUCKET", ""),
         )
 
