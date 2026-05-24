@@ -1,0 +1,64 @@
+name: Repocaster
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "architecture or focus"
+        required: false
+        default: "architecture"
+      focus:
+        description: "Optional focus topic, e.g. how LangChain is used"
+        required: false
+        default: ""
+      dry_run:
+        description: "Build context only; do not call Bedrock/OpenAI"
+        required: false
+        default: "true"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  repocaster:
+    if: github.actor == 'time4116'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -e .
+      - name: Install ffmpeg
+        if: inputs.dry_run != 'true'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Configure AWS credentials
+        if: inputs.dry_run != 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+      - name: Generate briefing
+        run: |
+          args=(--repo "$GITHUB_WORKSPACE" --mode "$REPOCASTER_MODE" --focus "$REPOCASTER_FOCUS" --output output/repocaster.mp3)
+          if [ "$REPOCASTER_DRY_RUN" = "true" ]; then
+            args+=(--dry-run)
+          fi
+          repocaster "${args[@]}"
+        env:
+          REPOCASTER_MODE: ${{ inputs.mode }}
+          REPOCASTER_FOCUS: ${{ inputs.focus }}
+          REPOCASTER_DRY_RUN: ${{ inputs.dry_run }}
+          AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+          OUTPUT_BUCKET: ${{ vars.OUTPUT_BUCKET }}
+          BEDROCK_MODEL_ID: ${{ secrets.BEDROCK_MODEL_ID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_TTS_MODEL: ${{ vars.OPENAI_TTS_MODEL || 'tts-1' }}
+          OPENAI_TTS_VOICE_A: ${{ vars.OPENAI_TTS_VOICE_A || 'alloy' }}
+          OPENAI_TTS_VOICE_B: ${{ vars.OPENAI_TTS_VOICE_B || 'nova' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: repocaster-output
+          path: output/

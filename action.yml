@@ -1,0 +1,33 @@
+name: "Repocaster"
+description: "Generate an AI audio briefing from repository context. Intended for owner controlled workflows."
+inputs:
+  repository:
+    description: "Repository to analyze. Defaults to checked out workspace."
+    required: false
+  ref:
+    description: "Branch, tag, or SHA. Defaults to current checkout."
+    required: false
+  mode:
+    description: "Briefing mode: architecture or focus."
+    required: false
+    default: "architecture"
+  focus:
+    description: "Optional focus topic for deep dives."
+    required: false
+    default: ""
+  output:
+    description: "Output MP3 path."
+    required: false
+    default: "output/repocaster.mp3"
+runs:
+  using: "composite"
+  steps:
+    - shell: bash
+      env:
+        REPOCASTER_REPO: ${{ github.workspace }}
+        REPOCASTER_MODE: ${{ inputs.mode }}
+        REPOCASTER_FOCUS: ${{ inputs.focus }}
+        REPOCASTER_OUTPUT: ${{ inputs.output }}
+      run: |
+        python -m pip install .
+        repocaster --repo "$REPOCASTER_REPO" --mode "$REPOCASTER_MODE" --focus "$REPOCASTER_FOCUS" --output "$REPOCASTER_OUTPUT"

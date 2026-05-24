@@ -1,0 +1,33 @@
+[project]
+name = "repocaster"
+version = "0.1.0"
+description = "GitHub App and owner-only Action that turns repository context into AI generated audio briefings."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "boto3>=1.34",
+  "openai>=1.50",
+  "PyJWT[crypto]>=2.8",
+  "requests>=2.32",
+  "pydantic>=2.7",
+  "langgraph>=0.2",
+  "langchain-aws>=0.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.2", "ruff>=0.6", "bandit>=1.7", "pip-audit>=2.7"]
+
+[project.scripts]
+repocaster = "repocaster.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = []
