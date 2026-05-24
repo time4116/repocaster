@@ -8,6 +8,7 @@ import boto3
 from .config import Settings
 from .script import (
     PodcastScript,
+    normalize_spoken_terms,
     trim_script_to_segment_limit,
     trim_script_to_word_limit,
     validate_script,
@@ -34,6 +35,7 @@ def generate_script_with_bedrock(prompt: str, settings: Settings) -> PodcastScri
     raw_text = re.sub(r"^```(?:json)?\s*", "", raw_text.strip(), flags=re.IGNORECASE)
     raw_text = re.sub(r"\s*```$", "", raw_text)
     script = PodcastScript.model_validate(json.loads(raw_text))
+    script = normalize_spoken_terms(script)
     script = trim_script_to_segment_limit(script, settings.max_segments)
     script = trim_script_to_word_limit(script, settings.max_script_words)
     validate_script(script, settings)
