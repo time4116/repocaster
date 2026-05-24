@@ -6,7 +6,7 @@ import re
 import boto3
 
 from .config import Settings
-from .script import PodcastScript, validate_script
+from .script import PodcastScript, trim_script_to_word_limit, validate_script
 
 
 def _extract_text(response: dict) -> str:
@@ -29,5 +29,6 @@ def generate_script_with_bedrock(prompt: str, settings: Settings) -> PodcastScri
     raw_text = re.sub(r"^```(?:json)?\s*", "", raw_text.strip(), flags=re.IGNORECASE)
     raw_text = re.sub(r"\s*```$", "", raw_text)
     script = PodcastScript.model_validate(json.loads(raw_text))
+    script = trim_script_to_word_limit(script, settings.max_script_words)
     validate_script(script, settings)
     return script

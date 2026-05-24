@@ -41,6 +41,30 @@ def test_generate_script_with_bedrock_parses_and_validates_json():
     fake_client.converse.assert_called_once()
 
 
+def test_generate_script_with_bedrock_trims_overlong_model_output():
+    payload = {
+        "title": "Repocaster",
+        "target_duration_minutes": 6,
+        "estimated_word_count": 110,
+        "segments": [
+            {"speaker": "HOST_A", "text": " ".join(f"alpha{i}" for i in range(60))},
+            {"speaker": "HOST_B", "text": " ".join(f"bravo{i}" for i in range(50))},
+        ],
+    }
+    fake_client = Mock()
+    fake_client.converse.return_value = {
+        "output": {"message": {"content": [{"text": json.dumps(payload)}]}}
+    }
+    settings = _settings()
+
+    with patch("repocaster.bedrock.boto3.client", return_value=fake_client):
+        script = generate_script_with_bedrock("prompt", settings)
+
+    total_words = sum(len(segment.text.split()) for segment in script.segments)
+    assert total_words == settings.max_script_words
+    assert script.estimated_word_count == settings.max_script_words
+
+
 def test_generate_script_with_bedrock_strips_only_json_code_fence():
     payload = {
         "title": "Repocaster",
