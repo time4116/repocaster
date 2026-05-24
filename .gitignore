@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# Local secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p8
+.aws/
+
+# Generated media/output
+output/
+segments/
+*.mp3
+*.wav
+*.m4a
+
+# CDK / AWS
+cdk.out/
+.cdk.staging/
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/

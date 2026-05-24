@@ -1,0 +1,48 @@
+from __future__ import annotations
+
+import hashlib
+import hmac
+import json
+import os
+from typing import Any
+
+from repocaster.commands import parse_podcast_command
+from repocaster.config import Settings, repo_allowed, user_allowed
+
+
+def verify_signature(payload: str, signature: str, secret: str) -> bool:
+    if not signature.startswith("sha256="):
+        return False
+    expected = "sha256=" + hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature)
+
+
+def handle_issue_comment(payload: dict[str, Any], settings: Settings) -> dict[str, Any] | None:
+    repo = payload.get("repository", {}).get("full_name", "")
+    user = payload.get("comment", {}).get("user", {}).get("login", "")
+    body = payload.get("comment", {}).get("body", "")
+    command = parse_podcast_command(body)
+    if command is None:
+        return None
+    if not repo_allowed(repo, settings):
+        return {"accepted": False, "reason": "repo not allowed", "repo": repo}
+    if not user_allowed(user, settings):
+        return {"accepted": False, "reason": "user not allowed", "user": user}
+    return {"accepted": True, "repo": repo, "user": user, "command": command.__dict__}
+
+
+def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
+    body = event.get("body") or "{}"
+    headers = event.get("headers") or {}
+    event_name = headers.get("x-github-event") or headers.get("X-GitHub-Event")
+    signature = headers.get("x-hub-signature-256") or headers.get("X-Hub-Signature-256") or ""
+    webhook_secret = os.environ.get("GITHUB_WEBHOOK_SECRET", "")
+    if webhook_secret and not verify_signature(body, signature, webhook_secret):
+        return {"statusCode": 401, "body": json.dumps({"error": "invalid signature"})}
+    if event_name != "issue_comment":
+        return {"statusCode": 202, "body": json.dumps({"message": "ignored event"})}
+    result = handle_issue_comment(json.loads(body), Settings.from_env())
+    if result and result.get("accepted"):
+        # TODO: enqueue to SQS after CDK stack is added.
+        return {"statusCode": 202, "body": json.dumps({"message": "accepted", "job": result})}
+    return {"statusCode": 202, "body": json.dumps({"message": "ignored", "result": result})}
