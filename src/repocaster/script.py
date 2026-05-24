@@ -120,8 +120,17 @@ Requirements:
 - Avoid markdown, bullets, headings, and code syntax unless absolutely necessary.
 - Natural handoffs between hosts should make the conversation feel like a polished
   technical podcast, not alternating summaries.
+- Keep the middle section less implementation-heavy than raw code notes. Favor design
+  decisions, tradeoffs, and why the pieces exist over exhaustive internals.
+- Skip low-level parsing details unless they are central to the architecture or focus.
 - Keep dense technical phrases readable aloud. Briefly explain repo-specific names
   before using them repeatedly.
+- Pronunciation guidance: write terms exactly as they should be read aloud, including
+  LangGraph, Claude, SQS queue, Bedrock AgentCore, GitHub Actions, API Gateway, Lambda,
+  and Terraform. Avoid phrasings that could be misread as "land graph," "cloud," or
+  "SQSQ."
+- End with a short wrap-up that states the big takeaway and why the project is a strong
+  architecture example. Do not end on a troubleshooting step or low-level detail.
 - No markdown, no code blocks, no claims not supported by context.
 - {focus_instruction}
 

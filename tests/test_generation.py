@@ -159,6 +159,45 @@ def test_script_prompt_guides_bedrock_toward_spoken_audio_style(tmp_path: Path):
     assert f"Use at most {_settings().max_segments} segments" in prompt
 
 
+def test_script_prompt_requests_showcase_outro_and_less_dense_middle(tmp_path: Path):
+    from repocaster.context import ContextFile, ContextPack
+
+    pack = ContextPack(
+        repo_path=str(tmp_path),
+        mode="focus",
+        focus="architecture and LangGraph",
+        files=(ContextFile(path="README.md", content="# Bedrock PR Agent", score=100),),
+        total_chars=18,
+    )
+
+    prompt = build_script_prompt(pack, _settings())
+
+    assert "End with a short wrap-up" in prompt
+    assert "big takeaway" in prompt
+    assert "less implementation-heavy" in prompt
+    assert "Skip low-level parsing details" in prompt
+
+
+def test_script_prompt_includes_pronunciation_guidance_for_common_ai_terms(tmp_path: Path):
+    from repocaster.context import ContextFile, ContextPack
+
+    pack = ContextPack(
+        repo_path=str(tmp_path),
+        mode="architecture",
+        focus=None,
+        files=(ContextFile(path="README.md", content="# Bedrock PR Agent", score=100),),
+        total_chars=18,
+    )
+
+    prompt = build_script_prompt(pack, _settings())
+
+    assert "Pronunciation guidance" in prompt
+    assert "LangGraph" in prompt
+    assert "Claude" in prompt
+    assert "SQS queue" in prompt
+    assert "Bedrock AgentCore" in prompt
+
+
 def test_openai_client_is_reused_for_all_segments(tmp_path: Path):
     from repocaster.audio import synthesize_segments_with_openai
 
