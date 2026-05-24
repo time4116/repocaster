@@ -126,22 +126,14 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 ```
 
-## Repository description
+## Running locally
 
-```text
-A GitHub App that turns repository context into focused AI generated audio briefings.
+Install the package in editable mode, then start with dry-run previews:
+
+```bash
+python -m pip install -e .
+repocaster --repo . --mode architecture --dry-run
+repocaster --repo . --mode focus --focus "deployment pipeline" --dry-run
 ```
 
-## Topics
-
-```text
-github-app
-aws-bedrock
-langgraph
-langchain
-openai-tts
-devops-automation
-repo-analysis
-podcast
-llm
-```
+Non-dry-run generation requires AWS Bedrock, OpenAI, ffmpeg, and the environment described in [`SETUP.md`](SETUP.md).
