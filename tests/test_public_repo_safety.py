@@ -130,36 +130,38 @@ def test_gitignore_semantically_blocks_local_secrets_and_generated_audio():
     assert set(should_be_ignored).issubset(ignored)
 
 
-def test_action_and_workflow_pass_user_inputs_through_environment_variables():
-    action_text = (ROOT / "action.yml").read_text(encoding="utf-8")
+def test_repocaster_has_no_reusable_composite_action_surface():
+    assert not (ROOT / "action.yml").exists()
+
+
+def test_workflow_passes_user_inputs_through_environment_variables():
     workflow_text = (ROOT / ".github/workflows/repocaster.yml").read_text(encoding="utf-8")
 
-    assert "REPOCASTER_FOCUS: ${{ inputs.focus }}" in action_text
     assert "REPOCASTER_FOCUS: ${{ inputs.focus }}" in workflow_text
     assert "REPOCASTER_MODE: ${{ inputs.mode }}" in workflow_text
-    assert "REPOCASTER_REPOSITORY: ${{ inputs.repository }}" in action_text
     assert "repository: ${{ inputs.repository || github.repository }}" in workflow_text
     assert '--repo "$GITHUB_WORKSPACE/target-repo"' in workflow_text
-    assert '--focus "${{ inputs.focus }}"' not in action_text
     assert '--focus "${{ inputs.focus }}"' not in workflow_text
     assert '--mode "${{ inputs.mode }}"' not in workflow_text
 
 
-def test_action_can_checkout_and_analyze_a_different_repository():
-    action = _workflow("action.yml")
-    inputs = action.get("inputs", {})
+def test_manual_repocaster_workflow_can_checkout_and_analyze_a_different_repository():
+    workflow = _workflow(".github/workflows/repocaster.yml")
+    workflow_dispatch = workflow.get("on", {}).get("workflow_dispatch", {})
+    inputs = workflow_dispatch.get("inputs", {})
     assert inputs.get("repository", {}).get("default") == ""
     assert inputs.get("ref", {}).get("default") == ""
 
-    steps = action.get("runs", {}).get("steps", [])
+    steps = workflow["jobs"]["repocaster"]["steps"]
     checkout_steps = [step for step in steps if step.get("uses") == "actions/checkout@v4"]
-    assert checkout_steps
-    assert checkout_steps[0].get("if") == "inputs.repository != ''"
-    assert checkout_steps[0].get("with", {}).get("repository") == "${{ inputs.repository }}"
-    assert checkout_steps[0].get("with", {}).get("path") == "repocaster-target"
-    assert 'python -m pip install "$GITHUB_ACTION_PATH"' in (ROOT / "action.yml").read_text(
-        encoding="utf-8"
+    assert len(checkout_steps) == 2
+    assert checkout_steps[0].get("with", {}).get("path") == "repocaster-action"
+    assert (
+        checkout_steps[1].get("with", {}).get("repository")
+        == "${{ inputs.repository || github.repository }}"
     )
+    assert checkout_steps[1].get("with", {}).get("ref") == "${{ inputs.ref }}"
+    assert checkout_steps[1].get("with", {}).get("path") == "target-repo"
 
 
 def test_owner_only_repocaster_workflow_has_only_manual_trigger_and_gated_jobs():

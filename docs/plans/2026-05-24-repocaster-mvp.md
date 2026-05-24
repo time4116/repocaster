@@ -2,9 +2,9 @@
 
 > **For Hermes:** Use subagent-driven-development skill to implement this plan task-by-task.
 
-**Goal:** Build a low-cost GitHub App and owner-only GitHub Action that generates 6 to 8 minute audio briefings from repository context.
+**Goal:** Build a low-cost GitHub App and owner-only GitHub Actions workflow that generates 6 to 8 minute audio briefings from repository context.
 
-**Architecture:** One shared core pipeline powers three entrypoints: CLI, GitHub App worker, and GitHub Action. GitHub App mode uses API Gateway, Lambda, SQS, S3 quotas, Bedrock script generation, OpenAI TTS, and private S3 presigned URLs. Action mode is manual owner-only and uses repository secrets.
+**Architecture:** One shared core pipeline powers three entrypoints: CLI, GitHub App worker, and manual GitHub Actions workflow. GitHub App mode uses API Gateway, Lambda, SQS, S3 quotas, Bedrock script generation, OpenAI TTS, and private S3 presigned URLs. Workflow mode is manual owner-only and uses repository secrets.
 
 **Tech Stack:** Python 3.11, LangGraph, AWS Bedrock, OpenAI TTS, S3, GitHub App APIs, GitHub Actions, CDK.
 
