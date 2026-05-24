@@ -36,9 +36,9 @@ def bedrock_model_resources(model_id: str, region: str, account: str = "") -> li
         base_model_id = model_id[len(prefix):]
         return [
             f"arn:aws:bedrock:{region}:{account}:inference-profile/{model_id}",
-            f"arn:aws:bedrock:::foundation-model/{base_model_id}",
+            f"arn:aws:bedrock:{region}::foundation-model/{base_model_id}",
         ]
-    return [f"arn:aws:bedrock:::foundation-model/{model_id}"]
+    return [f"arn:aws:bedrock:{region}::foundation-model/{model_id}"]
 
 
 def main() -> None:

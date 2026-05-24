@@ -22,7 +22,7 @@ class Settings:
     target_script_words: int = 1050
     min_script_words: int = 900
     max_script_words: int = 1400
-    max_segments: int = 22
+    max_segments: int = 26
     s3_retention_days: int = 10
     presigned_url_ttl_seconds: int = 604_800
     bedrock_model_id: str = ""
