@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from pydantic import BaseModel, Field, field_validator
 
 from .config import Settings
@@ -86,6 +88,42 @@ def trim_script_to_segment_limit(script: PodcastScript, max_segments: int) -> Po
     )
 
 
+def normalize_spoken_terms(script: PodcastScript) -> PodcastScript:
+    """Rewrite risky technical terms into forms that TTS reads more reliably."""
+    replacements = (
+        (re.compile(r"\bLangGraph\b"), "Lang Graph"),
+        (re.compile(r"\bStateGraph\b"), "State Graph"),
+        (re.compile(r"\bBedrock AgentCore\b"), "Bedrock Agent Core"),
+        (re.compile(r"\bChatBedrockConverse\b"), "Chat Bedrock Converse"),
+        (re.compile(r"\bSQS queue\b"), "S Q S queue"),
+        (re.compile(r"\bSQS\b"), "S Q S"),
+        (re.compile(r"\bidempotent comment design\b", re.IGNORECASE), "repeat-safe comment design"),
+        (re.compile(r"\bidempotent comments\b", re.IGNORECASE), "repeat-safe comments"),
+        (re.compile(r"\bidempotent\b", re.IGNORECASE), "repeat-safe"),
+    )
+
+    normalized_segments: list[ScriptSegment] = []
+    changed = False
+    for segment in script.segments:
+        text = segment.text
+        for pattern, replacement in replacements:
+            text = pattern.sub(replacement, text)
+        changed = changed or text != segment.text
+        normalized_segments.append(segment.model_copy(update={"text": text}))
+
+    if not changed:
+        return script
+
+    return script.model_copy(
+        update={
+            "segments": normalized_segments,
+            "estimated_word_count": script_word_count(
+                script.model_copy(update={"segments": normalized_segments})
+            ),
+        }
+    )
+
+
 def validate_script(script: PodcastScript, settings: Settings) -> None:
     words = script_word_count(script)
     if words < settings.min_script_words:
@@ -125,10 +163,10 @@ Requirements:
 - Skip low-level parsing details unless they are central to the architecture or focus.
 - Keep dense technical phrases readable aloud. Briefly explain repo-specific names
   before using them repeatedly.
-- Pronunciation guidance: write terms exactly as they should be read aloud, including
-  LangGraph, Claude, SQS queue, Bedrock AgentCore, GitHub Actions, API Gateway, Lambda,
-  and Terraform. Avoid phrasings that could be misread as "land graph," "cloud," or
-  "SQSQ."
+- Pronunciation guidance: write terms in TTS-friendly spoken form, including Lang Graph,
+  Claude, S Q S queue, Bedrock Agent Core, GitHub Actions, API Gateway, Lambda, and
+  Terraform. Prefer "repeat-safe" over "idempotent" in spoken script text. Avoid
+  phrasings that could be misread as "land graph," "cloud," "SQSQ," or "item potent."
 - End with a short wrap-up that states the big takeaway and why the project is a strong
   architecture example. Do not end on a troubleshooting step or low-level detail.
 - No markdown, no code blocks, no claims not supported by context.

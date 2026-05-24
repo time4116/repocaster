@@ -6,7 +6,12 @@ from unittest.mock import MagicMock, Mock, patch
 
 from repocaster.bedrock import generate_script_with_bedrock
 from repocaster.config import Settings
-from repocaster.script import PodcastScript, ScriptSegment, build_script_prompt
+from repocaster.script import (
+    PodcastScript,
+    ScriptSegment,
+    build_script_prompt,
+    normalize_spoken_terms,
+)
 
 
 def _settings() -> Settings:
@@ -95,6 +100,61 @@ def test_generate_script_with_bedrock_trims_over_segmented_model_output():
     assert len(script.segments) == settings.max_segments
     assert script.estimated_word_count == 4
     assert [segment.text for segment in script.segments] == ["one two", "three four"]
+
+
+def test_normalize_spoken_terms_rewrites_risky_tts_phrases():
+    script = PodcastScript(
+        title="LangGraph and StateGraph",
+        target_duration_minutes=7,
+        estimated_word_count=23,
+        segments=[
+            ScriptSegment(
+                speaker="HOST_A",
+                text="LangGraph sends work to an SQS queue before Bedrock AgentCore runs.",
+            ),
+            ScriptSegment(
+                speaker="HOST_B",
+                text="The idempotent comment design uses Claude through ChatBedrockConverse.",
+            ),
+        ],
+    )
+
+    normalized = normalize_spoken_terms(script)
+    joined = " ".join(segment.text for segment in normalized.segments)
+
+    assert "Lang Graph" in joined
+    assert "S Q S queue" in joined
+    assert "Bedrock Agent Core" in joined
+    assert "repeat-safe comment design" in joined
+    assert "Claude" in joined
+    assert "LangGraph" not in joined
+    assert "SQS queue" not in joined
+    assert "idempotent" not in joined.lower()
+
+
+def test_generate_script_with_bedrock_normalizes_spoken_terms_before_tts():
+    payload = {
+        "title": "LangGraph",
+        "target_duration_minutes": 6,
+        "estimated_word_count": 12,
+        "segments": [
+            {
+                "speaker": "HOST_A",
+                "text": "LangGraph queues work in SQS and posts idempotent comments.",
+            },
+        ],
+    }
+    fake_client = Mock()
+    fake_client.converse.return_value = {
+        "output": {"message": {"content": [{"text": json.dumps(payload)}]}}
+    }
+
+    with patch("repocaster.bedrock.boto3.client", return_value=fake_client):
+        script = generate_script_with_bedrock("prompt", _settings())
+
+    assert script.segments[0].text == (
+        "Lang Graph queues work in S Q S and posts repeat-safe comments."
+    )
 
 
 def test_generate_script_with_bedrock_strips_only_json_code_fence():
@@ -192,10 +252,11 @@ def test_script_prompt_includes_pronunciation_guidance_for_common_ai_terms(tmp_p
     prompt = build_script_prompt(pack, _settings())
 
     assert "Pronunciation guidance" in prompt
-    assert "LangGraph" in prompt
+    assert "Lang Graph" in prompt
     assert "Claude" in prompt
-    assert "SQS queue" in prompt
-    assert "Bedrock AgentCore" in prompt
+    assert "S Q S queue" in prompt
+    assert "Bedrock Agent Core" in prompt
+    assert "repeat-safe" in prompt
 
 
 def test_openai_client_is_reused_for_all_segments(tmp_path: Path):
