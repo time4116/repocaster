@@ -71,9 +71,9 @@ jobs:
           OUTPUT_BUCKET: ${{ vars.OUTPUT_BUCKET }}
           BEDROCK_MODEL_ID: ${{ secrets.BEDROCK_MODEL_ID }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_TTS_MODEL: ${{ vars.OPENAI_TTS_MODEL || 'tts-1' }}
-          OPENAI_TTS_VOICE_A: ${{ vars.OPENAI_TTS_VOICE_A || 'alloy' }}
-          OPENAI_TTS_VOICE_B: ${{ vars.OPENAI_TTS_VOICE_B || 'nova' }}
+          OPENAI_TTS_MODEL: ${{ vars.OPENAI_TTS_MODEL || 'tts-1-hd' }}
+          OPENAI_TTS_VOICE_A: ${{ vars.OPENAI_TTS_VOICE_A || 'nova' }}
+          OPENAI_TTS_VOICE_B: ${{ vars.OPENAI_TTS_VOICE_B || 'shimmer' }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:

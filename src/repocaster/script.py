@@ -99,6 +99,12 @@ Requirements:
 - Use exactly two speakers: HOST_A and HOST_B.
 - Produce JSON only with fields: title, target_duration_minutes, estimated_word_count, segments.
 - segments is an array of objects with speaker and text.
+- Write for spoken audio, not an essay. Use short sentences and natural contractions.
+- Avoid markdown, bullets, headings, and code syntax unless absolutely necessary.
+- Natural handoffs between hosts should make the conversation feel like a polished
+  technical podcast, not alternating summaries.
+- Keep dense technical phrases readable aloud. Briefly explain repo-specific names
+  before using them repeatedly.
 - No markdown, no code blocks, no claims not supported by context.
 - {focus_instruction}
 
