@@ -21,7 +21,7 @@ class Settings:
     max_episode_minutes: int = 8
     target_script_words: int = 1050
     min_script_words: int = 900
-    max_script_words: int = 1250
+    max_script_words: int = 1400
     max_segments: int = 22
     s3_retention_days: int = 10
     presigned_url_ttl_seconds: int = 604_800
