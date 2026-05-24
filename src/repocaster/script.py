@@ -70,6 +70,22 @@ def trim_script_to_word_limit(script: PodcastScript, max_words: int) -> PodcastS
     )
 
 
+def trim_script_to_segment_limit(script: PodcastScript, max_segments: int) -> PodcastScript:
+    """Trim model output to the configured segment ceiling as a last-resort guardrail."""
+    if len(script.segments) <= max_segments:
+        return script
+
+    trimmed_segments = script.segments[:max_segments]
+    return script.model_copy(
+        update={
+            "segments": trimmed_segments,
+            "estimated_word_count": script_word_count(
+                script.model_copy(update={"segments": trimmed_segments})
+            ),
+        }
+    )
+
+
 def validate_script(script: PodcastScript, settings: Settings) -> None:
     words = script_word_count(script)
     if words < settings.min_script_words:
@@ -97,6 +113,7 @@ Requirements:
   total.
   Aim for {settings.target_script_words} words. Do not exceed {settings.max_script_words} words.
 - Use exactly two speakers: HOST_A and HOST_B.
+- Use at most {settings.max_segments} segments.
 - Produce JSON only with fields: title, target_duration_minutes, estimated_word_count, segments.
 - segments is an array of objects with speaker and text.
 - Write for spoken audio, not an essay. Use short sentences and natural contractions.

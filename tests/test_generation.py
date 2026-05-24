@@ -65,6 +65,38 @@ def test_generate_script_with_bedrock_trims_overlong_model_output():
     assert script.estimated_word_count == settings.max_script_words
 
 
+def test_generate_script_with_bedrock_trims_over_segmented_model_output():
+    payload = {
+        "title": "Repocaster",
+        "target_duration_minutes": 6,
+        "estimated_word_count": 6,
+        "segments": [
+            {"speaker": "HOST_A", "text": "one two"},
+            {"speaker": "HOST_B", "text": "three four"},
+            {"speaker": "HOST_A", "text": "five six"},
+        ],
+    }
+    fake_client = Mock()
+    fake_client.converse.return_value = {
+        "output": {"message": {"content": [{"text": json.dumps(payload)}]}}
+    }
+    settings = Settings(
+        allowed_repos=("time4116/repocaster",),
+        allowed_users=("time4116",),
+        min_script_words=2,
+        max_script_words=100,
+        max_segments=2,
+        bedrock_model_id="test-model",
+    )
+
+    with patch("repocaster.bedrock.boto3.client", return_value=fake_client):
+        script = generate_script_with_bedrock("prompt", settings)
+
+    assert len(script.segments) == settings.max_segments
+    assert script.estimated_word_count == 4
+    assert [segment.text for segment in script.segments] == ["one two", "three four"]
+
+
 def test_generate_script_with_bedrock_strips_only_json_code_fence():
     payload = {
         "title": "Repocaster",
@@ -124,6 +156,7 @@ def test_script_prompt_guides_bedrock_toward_spoken_audio_style(tmp_path: Path):
     assert "Use short sentences and natural contractions" in prompt
     assert "Avoid markdown, bullets, headings, and code syntax" in prompt
     assert "Natural handoffs between hosts" in prompt
+    assert f"Use at most {_settings().max_segments} segments" in prompt
 
 
 def test_openai_client_is_reused_for_all_segments(tmp_path: Path):
