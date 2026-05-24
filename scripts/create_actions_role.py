@@ -12,7 +12,16 @@ def _account_id() -> str:
     return boto3.client("sts").get_caller_identity()["Account"]
 
 
-def bedrock_model_resource(model_id: str, region: str) -> str:
+_INFERENCE_PROFILE_PREFIXES = ("us.", "eu.", "ap.", "global.")
+
+
+def bedrock_model_resources(model_id: str, region: str, account: str = "") -> list[str]:
+    """Return the list of ARNs that must be allowed for this model.
+
+    Cross-region inference profiles (global.*, us.*, etc.) require both the
+    inference-profile ARN and the underlying foundation-model ARN because
+    Bedrock checks authorization against both when the Converse API is called.
+    """
     if model_id.startswith("arn:aws"):
         parts = model_id.split(":", 5)
         if len(parts) != 6 or parts[2] != "bedrock":
@@ -21,8 +30,15 @@ def bedrock_model_resource(model_id: str, region: str) -> str:
             raise ValueError(
                 "Bedrock model ARN must reference a foundation model or inference profile"
             )
-        return model_id
-    return f"arn:aws:bedrock:{region}::foundation-model/{model_id}"
+        return [model_id]
+    if any(model_id.startswith(p) for p in _INFERENCE_PROFILE_PREFIXES):
+        prefix = next(p for p in _INFERENCE_PROFILE_PREFIXES if model_id.startswith(p))
+        base_model_id = model_id[len(prefix):]
+        return [
+            f"arn:aws:bedrock:{region}:{account}:inference-profile/{model_id}",
+            f"arn:aws:bedrock:*::foundation-model/{base_model_id}",
+        ]
+    return [f"arn:aws:bedrock:*::foundation-model/{model_id}"]
 
 
 def main() -> None:
@@ -84,14 +100,14 @@ def main() -> None:
         )
         role = iam.get_role(RoleName=args.role_name)["Role"]
 
-    bedrock_resource = bedrock_model_resource(args.bedrock_model_id, args.region)
+    bedrock_resources = bedrock_model_resources(args.bedrock_model_id, args.region, account)
     policy = {
         "Version": "2012-10-17",
         "Statement": [
             {
                 "Effect": "Allow",
                 "Action": ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
-                "Resource": bedrock_resource,
+                "Resource": bedrock_resources,
             },
             {
                 "Effect": "Allow",
@@ -110,7 +126,7 @@ def main() -> None:
     )
     print(
         json.dumps(
-            {"role_arn": role["Arn"], "bucket": args.bucket, "bedrock_resource": bedrock_resource},
+            {"role_arn": role["Arn"], "bucket": args.bucket, "bedrock_resources": bedrock_resources},
             indent=2,
         )
     )

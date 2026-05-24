@@ -1,0 +1,11 @@
+FROM python:3.11-slim
+
+ENV VIRTUAL_ENV=/repocaster/.venv
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+WORKDIR /repocaster
+
+COPY scripts/ scripts/
+
+RUN python -m venv $VIRTUAL_ENV && \
+    pip install --no-cache-dir boto3

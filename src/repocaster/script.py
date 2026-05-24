@@ -52,8 +52,8 @@ grounded only in the repository context below.
 
 Requirements:
 - Target duration: {settings.min_episode_minutes} to {settings.max_episode_minutes} minutes.
-- Target word count: about {settings.target_script_words} words, allowed range
-  {settings.min_script_words}-{settings.max_script_words}.
+- Word count: strictly between {settings.min_script_words} and {settings.max_script_words} words total.
+  Aim for {settings.target_script_words} words. Do not exceed {settings.max_script_words} words.
 - Use exactly two speakers: HOST_A and HOST_B.
 - Produce JSON only with fields: title, target_duration_minutes, estimated_word_count, segments.
 - segments is an array of objects with speaker and text.
