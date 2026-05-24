@@ -18,24 +18,33 @@ def _load_create_actions_role():
     return module
 
 
-def test_bedrock_model_resource_scopes_foundation_model_id_to_region():
+def test_bedrock_model_resources_scopes_foundation_model_id_to_region():
     module = _load_create_actions_role()
-    assert (
-        module.bedrock_model_resource("anthropic.claude-3-5-haiku-20241022-v1:0", "us-east-1")
-        == "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-haiku-20241022-v1:0"
-    )
+    assert module.bedrock_model_resources(
+        "anthropic.claude-3-5-haiku-20241022-v1:0", "us-east-1"
+    ) == ["arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-haiku-20241022-v1:0"]
 
 
-def test_bedrock_model_resource_preserves_explicit_arn():
+def test_bedrock_model_resources_preserves_explicit_arn():
     module = _load_create_actions_role()
     arn = "arn:aws:bedrock:us-east-1::foundation-model/example-model"
-    assert module.bedrock_model_resource(arn, "us-west-2") == arn
+    assert module.bedrock_model_resources(arn, "us-west-2") == [arn]
 
 
-def test_bedrock_model_resource_rejects_non_bedrock_arn():
+def test_bedrock_model_resources_rejects_non_bedrock_arn():
     module = _load_create_actions_role()
     with pytest.raises(ValueError, match="bedrock"):
-        module.bedrock_model_resource("arn:aws:s3:::not-a-model", "us-east-1")
+        module.bedrock_model_resources("arn:aws:s3:::not-a-model", "us-east-1")
+
+
+def test_bedrock_model_resources_adds_inference_profile_and_base_model_arns():
+    module = _load_create_actions_role()
+    assert module.bedrock_model_resources(
+        "us.anthropic.claude-3-5-haiku-20241022-v1:0", "us-east-1", "ACCOUNT_ID"
+    ) == [
+        "arn:aws:bedrock:us-east-1:ACCOUNT_ID:inference-profile/us.anthropic.claude-3-5-haiku-20241022-v1:0",
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-haiku-20241022-v1:0",
+    ]
 
 
 def test_create_actions_role_script_requires_bedrock_model_id():

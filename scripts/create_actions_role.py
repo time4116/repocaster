@@ -33,7 +33,7 @@ def bedrock_model_resources(model_id: str, region: str, account: str = "") -> li
         return [model_id]
     if any(model_id.startswith(p) for p in _INFERENCE_PROFILE_PREFIXES):
         prefix = next(p for p in _INFERENCE_PROFILE_PREFIXES if model_id.startswith(p))
-        base_model_id = model_id[len(prefix):]
+        base_model_id = model_id[len(prefix) :]
         return [
             f"arn:aws:bedrock:{region}:{account}:inference-profile/{model_id}",
             f"arn:aws:bedrock:{region}::foundation-model/{base_model_id}",
@@ -126,7 +126,11 @@ def main() -> None:
     )
     print(
         json.dumps(
-            {"role_arn": role["Arn"], "bucket": args.bucket, "bedrock_resources": bedrock_resources},
+            {
+                "role_arn": role["Arn"],
+                "bucket": args.bucket,
+                "bedrock_resources": bedrock_resources,
+            },
             indent=2,
         )
     )

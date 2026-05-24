@@ -29,8 +29,49 @@ def count_words(text: str) -> int:
     return len([part for part in text.split() if part.strip()])
 
 
+def script_word_count(script: PodcastScript) -> int:
+    return sum(count_words(segment.text) for segment in script.segments)
+
+
+def trim_script_to_word_limit(script: PodcastScript, max_words: int) -> PodcastScript:
+    """Trim model output to the configured word ceiling as a last-resort guardrail.
+
+    Bedrock can occasionally exceed explicit word-count instructions by a small amount.
+    For owner-triggered MVP runs, returning a slightly trimmed episode is better than
+    failing after the LLM call has already been paid for.
+    """
+    if script_word_count(script) <= max_words:
+        return script
+
+    remaining = max_words
+    trimmed_segments: list[ScriptSegment] = []
+    for segment in script.segments:
+        words = [part for part in segment.text.split() if part.strip()]
+        if not words:
+            continue
+        if remaining <= 0:
+            break
+        if len(words) <= remaining:
+            trimmed_segments.append(segment)
+            remaining -= len(words)
+            continue
+        trimmed_text = " ".join(words[:remaining]).rstrip(" ,;:")
+        if not trimmed_text.endswith((".", "!", "?")):
+            trimmed_text = f"{trimmed_text}."
+        trimmed_segments.append(ScriptSegment(speaker=segment.speaker, text=trimmed_text))
+        remaining = 0
+        break
+
+    return script.model_copy(
+        update={
+            "segments": trimmed_segments or script.segments[:1],
+            "estimated_word_count": min(script.estimated_word_count, max_words),
+        }
+    )
+
+
 def validate_script(script: PodcastScript, settings: Settings) -> None:
-    words = sum(count_words(segment.text) for segment in script.segments)
+    words = script_word_count(script)
     if words < settings.min_script_words:
         raise ValueError(f"script too short: {words} words")
     if words > settings.max_script_words:
@@ -52,7 +93,8 @@ grounded only in the repository context below.
 
 Requirements:
 - Target duration: {settings.min_episode_minutes} to {settings.max_episode_minutes} minutes.
-- Word count: strictly between {settings.min_script_words} and {settings.max_script_words} words total.
+- Word count: strictly between {settings.min_script_words} and {settings.max_script_words} words
+  total.
   Aim for {settings.target_script_words} words. Do not exceed {settings.max_script_words} words.
 - Use exactly two speakers: HOST_A and HOST_B.
 - Produce JSON only with fields: title, target_duration_minutes, estimated_word_count, segments.
