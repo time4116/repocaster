@@ -102,11 +102,13 @@ jobs:
       - run: pip install .
       - run: |
           repocaster \
-            --repo "${{ github.workspace }}" \
-            --mode "${{ inputs.mode }}" \
-            --focus "${{ inputs.focus }}" \
+            --repo "$GITHUB_WORKSPACE" \
+            --mode "$REPOCASTER_MODE" \
+            --focus "$REPOCASTER_FOCUS" \
             --output output/repocaster.mp3
         env:
+          REPOCASTER_MODE: ${{ inputs.mode }}
+          REPOCASTER_FOCUS: ${{ inputs.focus }}
           AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
           BEDROCK_MODEL_ID: ${{ secrets.BEDROCK_MODEL_ID }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
