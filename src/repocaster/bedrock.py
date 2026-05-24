@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 import boto3
 
@@ -25,9 +26,8 @@ def generate_script_with_bedrock(prompt: str, settings: Settings) -> PodcastScri
         inferenceConfig={"maxTokens": 4096, "temperature": 0.2},
     )
     raw_text = _extract_text(response)
-    if raw_text.startswith("```"):
-        raw_text = raw_text.strip("`")
-        raw_text = raw_text.removeprefix("json").strip()
+    raw_text = re.sub(r"^```(?:json)?\s*", "", raw_text.strip(), flags=re.IGNORECASE)
+    raw_text = re.sub(r"\s*```$", "", raw_text)
     script = PodcastScript.model_validate(json.loads(raw_text))
     validate_script(script, settings)
     return script

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 from repocaster.bedrock import generate_script_with_bedrock
 from repocaster.config import Settings
@@ -39,6 +39,54 @@ def test_generate_script_with_bedrock_parses_and_validates_json():
 
     assert script.title == "Repocaster"
     fake_client.converse.assert_called_once()
+
+
+def test_generate_script_with_bedrock_strips_only_json_code_fence():
+    payload = {
+        "title": "Repocaster",
+        "target_duration_minutes": 6,
+        "estimated_word_count": 3,
+        "segments": [{"speaker": "HOST_A", "text": "value keeps trailing ``` markers"}],
+    }
+    fake_client = Mock()
+    fake_client.converse.return_value = {
+        "output": {
+            "message": {
+                "content": [{"text": f"```json\n{json.dumps(payload)}\n```"}],
+            }
+        }
+    }
+
+    with patch("repocaster.bedrock.boto3.client", return_value=fake_client):
+        script = generate_script_with_bedrock("prompt", _settings())
+
+    assert script.segments[0].text.endswith("``` markers")
+
+
+def test_openai_client_is_reused_for_all_segments(tmp_path: Path):
+    from repocaster.audio import synthesize_segments_with_openai
+
+    script = PodcastScript(
+        title="Repocaster",
+        target_duration_minutes=6,
+        estimated_word_count=4,
+        segments=[
+            ScriptSegment(speaker="HOST_A", text="hello repo"),
+            ScriptSegment(speaker="HOST_B", text="hello again"),
+        ],
+    )
+    fake_client = Mock()
+    fake_response = Mock()
+    stream_context = MagicMock()
+    stream_context.__enter__.return_value = fake_response
+    fake_client.audio.speech.with_streaming_response.create.return_value = stream_context
+
+    with patch("repocaster.audio.OpenAI", return_value=fake_client) as openai:
+        paths = synthesize_segments_with_openai(script, tmp_path, _settings())
+
+    openai.assert_called_once()
+    assert len(paths) == 2
+    assert fake_response.stream_to_file.call_count == 2
 
 
 def test_stitch_with_ffmpeg_invokes_concat_command(tmp_path: Path):

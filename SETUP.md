@@ -101,7 +101,8 @@ python scripts/create_actions_role.py \
   --repo repocaster \
   --role-name repocaster-actions \
   --bucket repocaster-output-<unique-suffix> \
-  --region us-east-1
+  --region us-east-1 \
+  --bedrock-model-id <same BEDROCK_MODEL_ID used by bedrock-pr-agent>
 ```
 
 The script prints the role ARN. Save it as the GitHub Actions secret:
@@ -109,6 +110,14 @@ The script prints the role ARN. Save it as the GitHub Actions secret:
 ```text
 AWS_ROLE_ARN
 ```
+
+The role allows only the configured Bedrock model resource plus the Repocaster S3 bucket. If you pass a model ID such as `anthropic.claude-3-5-haiku-20241022-v1:0`, the script scopes Bedrock permissions to:
+
+```text
+arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-haiku-20241022-v1:0
+```
+
+If `bedrock-pr-agent` uses an inference profile ARN, pass that full ARN instead.
 
 The role allows:
 

@@ -41,12 +41,15 @@ jobs:
           aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
       - name: Generate briefing
         run: |
-          args=(--repo "$GITHUB_WORKSPACE" --mode "${{ inputs.mode }}" --focus "${{ inputs.focus }}" --output output/repocaster.mp3)
-          if [ "${{ inputs.dry_run }}" = "true" ]; then
+          args=(--repo "$GITHUB_WORKSPACE" --mode "$REPOCASTER_MODE" --focus "$REPOCASTER_FOCUS" --output output/repocaster.mp3)
+          if [ "$REPOCASTER_DRY_RUN" = "true" ]; then
             args+=(--dry-run)
           fi
           repocaster "${args[@]}"
         env:
+          REPOCASTER_MODE: ${{ inputs.mode }}
+          REPOCASTER_FOCUS: ${{ inputs.focus }}
+          REPOCASTER_DRY_RUN: ${{ inputs.dry_run }}
           AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
           OUTPUT_BUCKET: ${{ vars.OUTPUT_BUCKET }}
           BEDROCK_MODEL_ID: ${{ secrets.BEDROCK_MODEL_ID }}

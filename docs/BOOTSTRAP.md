@@ -36,10 +36,11 @@ python scripts/create_actions_role.py \
   --repo repocaster \
   --role-name repocaster-actions \
   --bucket repocaster-output-<unique-suffix> \
-  --region us-east-1
+  --region us-east-1 \
+  --bedrock-model-id <same BEDROCK_MODEL_ID used by bedrock-pr-agent>
 ```
 
-The role allows:
+The role allows only the configured Bedrock model resource plus the Repocaster S3 bucket:
 
 - `bedrock:InvokeModel`
 - `bedrock:InvokeModelWithResponseStream`

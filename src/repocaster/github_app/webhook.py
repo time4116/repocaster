@@ -37,7 +37,12 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     event_name = headers.get("x-github-event") or headers.get("X-GitHub-Event")
     signature = headers.get("x-hub-signature-256") or headers.get("X-Hub-Signature-256") or ""
     webhook_secret = os.environ.get("GITHUB_WEBHOOK_SECRET", "")
-    if webhook_secret and not verify_signature(body, signature, webhook_secret):
+    if not webhook_secret:
+        return {
+            "statusCode": 500,
+            "body": json.dumps({"error": "webhook secret not configured"}),
+        }
+    if not verify_signature(body, signature, webhook_secret):
         return {"statusCode": 401, "body": json.dumps({"error": "invalid signature"})}
     if event_name != "issue_comment":
         return {"statusCode": 202, "body": json.dumps({"message": "ignored event"})}

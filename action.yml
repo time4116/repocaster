@@ -23,6 +23,11 @@ runs:
   using: "composite"
   steps:
     - shell: bash
+      env:
+        REPOCASTER_REPO: ${{ github.workspace }}
+        REPOCASTER_MODE: ${{ inputs.mode }}
+        REPOCASTER_FOCUS: ${{ inputs.focus }}
+        REPOCASTER_OUTPUT: ${{ inputs.output }}
       run: |
         python -m pip install .
-        repocaster --repo "${{ github.workspace }}" --mode "${{ inputs.mode }}" --focus "${{ inputs.focus }}" --output "${{ inputs.output }}"
+        repocaster --repo "$REPOCASTER_REPO" --mode "$REPOCASTER_MODE" --focus "$REPOCASTER_FOCUS" --output "$REPOCASTER_OUTPUT"

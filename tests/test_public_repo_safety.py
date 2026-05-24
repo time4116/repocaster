@@ -130,6 +130,18 @@ def test_gitignore_semantically_blocks_local_secrets_and_generated_audio():
     assert set(should_be_ignored).issubset(ignored)
 
 
+def test_action_and_workflow_pass_user_inputs_through_environment_variables():
+    action_text = (ROOT / "action.yml").read_text(encoding="utf-8")
+    workflow_text = (ROOT / ".github/workflows/repocaster.yml").read_text(encoding="utf-8")
+
+    assert "REPOCASTER_FOCUS: ${{ inputs.focus }}" in action_text
+    assert "REPOCASTER_FOCUS: ${{ inputs.focus }}" in workflow_text
+    assert "REPOCASTER_MODE: ${{ inputs.mode }}" in workflow_text
+    assert '--focus "${{ inputs.focus }}"' not in action_text
+    assert '--focus "${{ inputs.focus }}"' not in workflow_text
+    assert '--mode "${{ inputs.mode }}"' not in workflow_text
+
+
 def test_owner_only_repocaster_workflow_has_only_manual_trigger_and_gated_jobs():
     workflow_path = ".github/workflows/repocaster.yml"
     workflow = _workflow(workflow_path)
