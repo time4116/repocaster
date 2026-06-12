@@ -150,7 +150,10 @@ def test_normalize_spoken_terms_rewrites_risky_tts_phrases():
             ),
             ScriptSegment(
                 speaker="HOST_B",
-                text="The idempotent comment design uses Claude through ChatBedrockConverse.",
+                text=(
+                    "The idempotent comment design reviews PRs with CI/CD context "
+                    "through ChatBedrockConverse."
+                ),
             ),
         ],
     )
@@ -162,7 +165,9 @@ def test_normalize_spoken_terms_rewrites_risky_tts_phrases():
     assert "S Q S queue" in joined
     assert "Bedrock Agent Core" in joined
     assert "repeat-safe comment design" in joined
-    assert "Claude" in joined
+    assert "pull requests" in joined
+    assert "C I C D" in joined
+    assert "Chat Bedrock Converse" in joined
     assert "LangGraph" not in joined
     assert "SQS queue" not in joined
     assert "idempotent" not in joined.lower()
