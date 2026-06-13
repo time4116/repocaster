@@ -356,6 +356,48 @@ def test_publish_to_s3_skips_when_no_bucket(tmp_path: Path):
     assert publish_to_s3(tmp_path / "a.mp3", tmp_path / "a.metadata.json", settings) is None
 
 
+def test_pipeline_includes_pull_request_context_in_metadata(tmp_path: Path):
+    from repocaster.context import ContextFile
+    from repocaster.pipeline import generate_podcast
+
+    script = PodcastScript(
+        title="PR briefing",
+        target_duration_minutes=6,
+        estimated_word_count=4,
+        segments=[ScriptSegment(speaker="HOST_A", text="hello pull request")],
+    )
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "README.md").write_text("# Test repo", encoding="utf-8")
+
+    with (
+        patch(
+            "repocaster.pipeline.collect_pull_request_context",
+            return_value=ContextFile("PULL_REQUEST.md", "# Pull Request 12", 1_000),
+        ) as pr_context,
+        patch("repocaster.pipeline.generate_script_with_bedrock", return_value=script),
+        patch(
+            "repocaster.pipeline.synthesize_segments_with_openai",
+            return_value=[tmp_path / "seg.mp3"],
+        ),
+        patch("repocaster.pipeline.stitch_with_ffmpeg"),
+        patch("repocaster.pipeline.publish_to_s3", return_value=None),
+    ):
+        result = generate_podcast(
+            str(repo),
+            "focus",
+            "review the pull request",
+            str(tmp_path / "out" / "repocaster.mp3"),
+            _settings(),
+            pull_request="12",
+        )
+
+    pr_context.assert_called_once()
+    metadata = json.loads(result.metadata_path.read_text(encoding="utf-8"))
+    assert metadata["pull_request"] == "12"
+    assert result.context_pack.files[0].path == "PULL_REQUEST.md"
+
+
 def test_pipeline_calls_bedrock_openai_ffmpeg_and_s3(tmp_path: Path):
     from repocaster.pipeline import generate_podcast
 

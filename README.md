@@ -4,7 +4,7 @@ Turn a GitHub repository into a focused AI generated audio briefing.
 
 Repocaster runs in two modes:
 
-1. **GitHub App mode** — comment `/podcast` or `/podcast focus <topic>` on an issue or PR. Repocaster scans the repository, generates a 6 to 8 minute two host briefing, uploads the MP3 to S3, and comments back with a presigned URL.
+1. **GitHub App mode** — comment `/podcast` or `/podcast focus <topic>` on an issue or PR. On PR comments, Repocaster includes the pull request diff and changed file summary so the episode is grounded in the proposed change, not just the whole repo. It scans the repository, generates a 6 to 8 minute two host briefing, uploads the MP3 to S3, and comments back with a presigned URL.
 2. **Owner only GitHub Actions workflow** — manually run the workflow in this Repocaster repo with repository/ref/focus inputs. This uses repo secrets and is intended for personal portfolio/demo use without requiring anyone to install the GitHub App.
 
 ## Why
@@ -34,6 +34,12 @@ Secondary download: [MP3 in the repo](docs/assets/repocaster-bedrock-pr-agent-la
 /podcast
 /podcast focus how LangChain and LangGraph are used
 /podcast focus deployment pipeline and GitHub Actions
+```
+
+When those commands are used on a pull request, Repocaster adds a synthetic `PULL_REQUEST.md` context file with the PR number, changed files, diff stat, and a bounded diff excerpt. For local or manual workflow runs, pass a PR number explicitly:
+
+```bash
+repocaster --repo . --pull-request 42 --mode focus --focus "explain the proposed change" --dry-run
 ```
 
 ## Default constraints
@@ -72,6 +78,7 @@ S3 MP3 + GitHub comment or Actions artifact
 ```bash
 python -m repocaster.cli --repo . --mode architecture --dry-run
 python -m repocaster.cli --repo . --mode focus --focus "how LangGraph is used" --dry-run
+python -m repocaster.cli --repo . --pull-request 42 --mode focus --focus "review the PR" --dry-run
 ```
 
 `--dry-run` builds the context pack and script request metadata without calling Bedrock or OpenAI.
@@ -130,11 +137,8 @@ jobs:
           python-version: '3.11'
       - run: pip install -e repocaster-action
       - run: |
-          repocaster \
-            --repo "$GITHUB_WORKSPACE/target-repo" \
-            --mode "$REPOCASTER_MODE" \
-            --focus "$REPOCASTER_FOCUS" \
-            --output output/repocaster.mp3
+          args=(--repo "$GITHUB_WORKSPACE/target-repo" --mode "$REPOCASTER_MODE" --focus "$REPOCASTER_FOCUS" --output output/repocaster.mp3)
+          repocaster "${args[@]}"
         env:
           REPOCASTER_MODE: ${{ inputs.mode }}
           REPOCASTER_FOCUS: ${{ inputs.focus }}
@@ -151,6 +155,7 @@ Install the package in editable mode, then start with dry-run previews:
 python -m pip install -e .
 repocaster --repo . --mode architecture --dry-run
 repocaster --repo . --mode focus --focus "deployment pipeline" --dry-run
+repocaster --repo . --pull-request 42 --mode focus --focus "review the PR" --dry-run
 ```
 
 Non-dry-run generation requires AWS Bedrock, OpenAI, ffmpeg, and the environment described in [`SETUP.md`](SETUP.md).
