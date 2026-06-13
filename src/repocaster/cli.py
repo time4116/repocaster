@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .config import Settings
 from .pipeline import generate_podcast, generate_podcast_dry_run
+from .pull_request import parse_pull_request_number
 
 
 def main() -> None:
@@ -19,6 +20,12 @@ def main() -> None:
         choices=["architecture", "focus", "onboarding"],
     )
     parser.add_argument("--focus", default="", help="Optional deep dive focus topic")
+    parser.add_argument(
+        "--pull-request",
+        "--pr",
+        default="",
+        help="Optional pull request number or GitHub PR URL to ground the briefing in",
+    )
     parser.add_argument("--output", default="output/repocaster.mp3")
     parser.add_argument(
         "--dry-run",
@@ -29,14 +36,18 @@ def main() -> None:
 
     settings = Settings.from_env()
     focus = args.focus.strip() or None
+    pull_request = args.pull_request.strip() or None
+    if pull_request and parse_pull_request_number(pull_request) is None:
+        parser.error("--pull-request must be a positive number or GitHub pull request URL")
 
     if args.dry_run:
-        result = generate_podcast_dry_run(args.repo, args.mode, focus, settings)
+        result = generate_podcast_dry_run(args.repo, args.mode, focus, settings, pull_request)
         out_dir = Path(args.output).parent
         out_dir.mkdir(parents=True, exist_ok=True)
         metadata = {
             "mode": args.mode,
             "focus": focus,
+            "pull_request": pull_request,
             "files": [item.path for item in result.context_pack.files],
             "total_chars": result.context_pack.total_chars,
             "prompt_chars": len(result.prompt),
@@ -45,7 +56,7 @@ def main() -> None:
         print(json.dumps(metadata, indent=2))
         return
 
-    result = generate_podcast(args.repo, args.mode, focus, args.output, settings)
+    result = generate_podcast(args.repo, args.mode, focus, args.output, settings, pull_request)
     print(
         json.dumps(
             {

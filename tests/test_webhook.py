@@ -89,6 +89,19 @@ def test_handle_issue_comment_accepts_allowed_command():
     assert result["command"]["mode"] == "focus"
 
 
+def test_handle_issue_comment_marks_pr_comments_for_pr_focused_generation():
+    payload = {
+        "repository": {"full_name": "time4116/repocaster"},
+        "issue": {"number": 17, "pull_request": {"url": "https://api.github.com/pr/17"}},
+        "comment": {"body": "/podcast", "user": {"login": "time4116"}},
+    }
+    settings = Settings(allowed_repos=("time4116/repocaster",), allowed_users=("time4116",))
+    result = handle_issue_comment(payload, settings)
+    assert result is not None
+    assert result["accepted"] is True
+    assert result["pull_request"] == "17"
+
+
 def test_handle_issue_comment_rejects_unallowed_user():
     payload = {
         "repository": {"full_name": "time4116/repocaster"},

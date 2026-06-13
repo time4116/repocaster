@@ -129,9 +129,10 @@ def build_context_pack(
     mode: str,
     focus: str | None,
     settings: Settings,
+    extra_files: tuple[ContextFile, ...] = (),
 ) -> ContextPack:
     root = Path(repo_path).resolve()
-    candidates: list[ContextFile] = []
+    candidates: list[ContextFile] = list(extra_files)
     for path in root.rglob("*"):
         if not path.is_file() or _ignored(path, root):
             continue
