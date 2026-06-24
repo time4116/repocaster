@@ -7,8 +7,9 @@ from pathlib import Path
 from .audio import stitch_with_ffmpeg, synthesize_segments_with_openai
 from .bedrock import generate_script_with_bedrock
 from .config import Settings
-from .context import ContextPack, build_context_pack
+from .context import ContextFile, ContextPack, build_context_pack
 from .publish import publish_to_s3
+from .pull_request import collect_pull_request_context
 from .script import PodcastScript, build_script_prompt
 
 
@@ -32,8 +33,10 @@ def generate_podcast_dry_run(
     mode: str,
     focus: str | None,
     settings: Settings,
+    pull_request: str | None = None,
 ) -> DryRunResult:
-    pack = build_context_pack(repo_path, mode, focus, settings)
+    extra_files = _pull_request_files(repo_path, pull_request, settings)
+    pack = build_context_pack(repo_path, mode, focus, settings, extra_files=extra_files)
     prompt = build_script_prompt(pack, settings)
     return DryRunResult(context_pack=pack, prompt=prompt)
 
@@ -44,8 +47,10 @@ def generate_podcast(
     focus: str | None,
     output_path: str,
     settings: Settings,
+    pull_request: str | None = None,
 ) -> PodcastResult:
-    pack = build_context_pack(repo_path, mode, focus, settings)
+    extra_files = _pull_request_files(repo_path, pull_request, settings)
+    pack = build_context_pack(repo_path, mode, focus, settings, extra_files=extra_files)
     prompt = build_script_prompt(pack, settings)
     script = generate_script_with_bedrock(prompt, settings)
     output = Path(output_path)
@@ -58,6 +63,7 @@ def generate_podcast(
         "title": script.title,
         "mode": mode,
         "focus": focus,
+        "pull_request": pull_request,
         "target_duration_minutes": script.target_duration_minutes,
         "estimated_word_count": script.estimated_word_count,
         "segments": len(script.segments),
@@ -71,6 +77,16 @@ def generate_podcast(
         metadata["presigned_url"] = presigned_url
         metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     return PodcastResult(pack, script, output, metadata_path, presigned_url)
+
+
+def _pull_request_files(
+    repo_path: str,
+    pull_request: str | None,
+    settings: Settings,
+) -> tuple[ContextFile, ...]:
+    if not pull_request:
+        return ()
+    return (collect_pull_request_context(repo_path, pull_request, settings),)
 
 
 def ensure_output_parent(path: str) -> None:

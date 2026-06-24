@@ -28,7 +28,16 @@ def handle_issue_comment(payload: dict[str, Any], settings: Settings) -> dict[st
         return {"accepted": False, "reason": "repo not allowed", "repo": repo}
     if not user_allowed(user, settings):
         return {"accepted": False, "reason": "user not allowed", "user": user}
-    return {"accepted": True, "repo": repo, "user": user, "command": command.__dict__}
+    result: dict[str, Any] = {
+        "accepted": True,
+        "repo": repo,
+        "user": user,
+        "command": command.__dict__,
+    }
+    issue = payload.get("issue", {})
+    if issue.get("pull_request") and issue.get("number"):
+        result["pull_request"] = str(issue["number"])
+    return result
 
 
 def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
