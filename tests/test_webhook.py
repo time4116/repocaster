@@ -1,3 +1,4 @@
+import base64
 import hashlib
 import hmac
 import json
@@ -75,6 +76,48 @@ def test_lambda_handler_accepts_lowercase_github_headers(monkeypatch):
         None,
     )
     assert response["statusCode"] == 202
+
+
+def test_lambda_handler_decodes_base64_event_body_before_verifying_signature(monkeypatch):
+    monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", "webhook-secret")
+    monkeypatch.setenv("ALLOWED_REPOS", "time4116/repocaster")
+    monkeypatch.setenv("ALLOWED_USERS", "time4116")
+    body = json.dumps(
+        {
+            "repository": {"full_name": "time4116/repocaster"},
+            "comment": {"body": "/podcast", "user": {"login": "time4116"}},
+        }
+    )
+    response = lambda_handler(
+        {
+            "body": base64.b64encode(body.encode()).decode(),
+            "isBase64Encoded": True,
+            "headers": {
+                "X-GitHub-Event": "issue_comment",
+                "X-Hub-Signature-256": _signature(body, "webhook-secret"),
+            },
+        },
+        None,
+    )
+    assert response["statusCode"] == 202
+    payload = json.loads(response["body"])
+    assert payload["message"] == "accepted"
+
+
+def test_lambda_handler_rejects_invalid_base64_event_body(monkeypatch):
+    monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", "webhook-secret")
+    response = lambda_handler(
+        {
+            "body": "not-valid-base64",
+            "isBase64Encoded": True,
+            "headers": {
+                "X-GitHub-Event": "issue_comment",
+                "X-Hub-Signature-256": "sha256=ignored",
+            },
+        },
+        None,
+    )
+    assert response["statusCode"] == 400
 
 
 def test_handle_issue_comment_accepts_allowed_command():
