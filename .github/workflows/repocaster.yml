@@ -19,6 +19,10 @@ on:
         description: "Optional focus topic, e.g. how LangChain is used"
         required: false
         default: ""
+      pull_request:
+        description: "Optional pull request number or URL to ground the briefing"
+        required: false
+        default: ""
       dry_run:
         description: "Build context only; do not call Bedrock/OpenAI"
         required: false
@@ -58,14 +62,31 @@ jobs:
           aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
       - name: Generate briefing
         run: |
-          args=(--repo "$GITHUB_WORKSPACE/target-repo" --mode "$REPOCASTER_MODE" --focus "$REPOCASTER_FOCUS" --output output/repocaster.mp3)
+          set -euo pipefail
+
+          args=(
+            --repo "$GITHUB_WORKSPACE/target-repo"
+            --mode "$REPOCASTER_MODE"
+            --output output/repocaster.mp3
+          )
+
+          if [ -n "$REPOCASTER_FOCUS" ]; then
+            args+=(--focus "$REPOCASTER_FOCUS")
+          fi
+
+          if [ -n "$REPOCASTER_PR" ]; then
+            args+=(--pull-request "$REPOCASTER_PR")
+          fi
+
           if [ "$REPOCASTER_DRY_RUN" = "true" ]; then
             args+=(--dry-run)
           fi
+
           repocaster "${args[@]}"
         env:
           REPOCASTER_MODE: ${{ inputs.mode }}
           REPOCASTER_FOCUS: ${{ inputs.focus }}
+          REPOCASTER_PR: ${{ inputs.pull_request }}
           REPOCASTER_DRY_RUN: ${{ inputs.dry_run }}
           AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
           OUTPUT_BUCKET: ${{ vars.OUTPUT_BUCKET }}

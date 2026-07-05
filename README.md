@@ -89,7 +89,7 @@ Before running non dry-run generation, follow the one-time setup in [`SETUP.md`]
 
 ## GitHub Actions mode
 
-The workflow is intentionally manual and owner guarded. It checks out Repocaster separately from the target repository, so `repository` can point at another `owner/name` repo when you want to generate a briefing for something other than `time4116/repocaster`.
+The workflow is intentionally manual and owner guarded. It checks out Repocaster separately from the target repository, so `repository` can point at another `owner/name` repo when you want to generate a briefing for something other than `time4116/repocaster`. Set `pull_request` to a PR number or GitHub PR URL when you want the briefing grounded in a specific proposed change.
 
 ```yaml
 name: Repocaster
@@ -111,6 +111,10 @@ on:
         default: "architecture"
       focus:
         description: "Optional focus topic, e.g. how LangChain is used"
+        required: false
+        default: ""
+      pull_request:
+        description: "Optional pull request number or URL to ground the briefing"
         required: false
         default: ""
 
@@ -137,11 +141,22 @@ jobs:
           python-version: '3.11'
       - run: pip install -e repocaster-action
       - run: |
-          args=(--repo "$GITHUB_WORKSPACE/target-repo" --mode "$REPOCASTER_MODE" --focus "$REPOCASTER_FOCUS" --output output/repocaster.mp3)
+          args=(
+            --repo "$GITHUB_WORKSPACE/target-repo"
+            --mode "$REPOCASTER_MODE"
+            --output output/repocaster.mp3
+          )
+          if [ -n "$REPOCASTER_FOCUS" ]; then
+            args+=(--focus "$REPOCASTER_FOCUS")
+          fi
+          if [ -n "$REPOCASTER_PR" ]; then
+            args+=(--pull-request "$REPOCASTER_PR")
+          fi
           repocaster "${args[@]}"
         env:
           REPOCASTER_MODE: ${{ inputs.mode }}
           REPOCASTER_FOCUS: ${{ inputs.focus }}
+          REPOCASTER_PR: ${{ inputs.pull_request }}
           AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
           BEDROCK_MODEL_ID: ${{ secrets.BEDROCK_MODEL_ID }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
