@@ -29,19 +29,18 @@ Recommended topics:
 ```text
 github-app
 aws-bedrock
-langgraph
-langchain
 openai-tts
 devops-automation
 repo-analysis
 podcast
 llm
+ai-agents
 ```
 
 Push this local repo after creating it:
 
 ```bash
-cd /opt/data/repocaster
+cd <path-to-your-repocaster-checkout>
 git remote add origin https://github.com/time4116/repocaster.git
 git push -u origin main
 ```
@@ -75,7 +74,7 @@ anthropic.claude-3-5-haiku-20241022-v1:0
 Generated MP3s and metadata should live in a private bucket with a 10 day lifecycle policy.
 
 ```bash
-cd /opt/data/repocaster
+cd <path-to-your-repocaster-checkout>
 python scripts/create_output_bucket.py \
   --bucket repocaster-output-<unique-suffix> \
   --region us-east-1 \
