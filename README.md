@@ -4,8 +4,10 @@ Turn a GitHub repository into a focused AI generated audio briefing.
 
 Repocaster runs in two modes:
 
-1. **GitHub App mode** — comment `/podcast` or `/podcast focus <topic>` on an issue or PR. On PR comments, Repocaster includes the pull request diff and changed file summary so the episode is grounded in the proposed change, not just the whole repo. It scans the repository, generates a 6 to 8 minute two host briefing, uploads the MP3 to S3, and comments back with a presigned URL.
-2. **Owner only GitHub Actions workflow** — manually run the workflow in this Repocaster repo with repository/ref/focus inputs. This uses repo secrets and is intended for personal portfolio/demo use without requiring anyone to install the GitHub App.
+1. **Owner only GitHub Actions workflow** (the working path): manually run the workflow in this Repocaster repo with repository/ref/focus inputs. It scans the target repository, generates a 6 to 8 minute two host briefing, uploads the MP3 as a workflow artifact (and to S3 with a presigned URL when `OUTPUT_BUCKET` is set). This uses repo secrets and is intended for personal portfolio/demo use without requiring anyone to install the GitHub App.
+2. **GitHub App mode** (in progress): comment `/podcast` or `/podcast focus <topic>` on an issue or PR. The webhook Lambda (HMAC verification, command parsing, repo and author allowlists) is implemented; the SQS queue and worker that would run the pipeline are not deployed yet, so accepted commands are acknowledged and dropped (see step 8 in [`SETUP.md`](SETUP.md)).
+
+In both modes, when a command or run targets a pull request, the context pack includes the PR diff and changed file summary so the episode is grounded in the proposed change, not just the whole repo.
 
 ## Why
 
@@ -66,8 +68,8 @@ Command parser / workflow inputs
 Repo scanner + focus aware context pack
         │
         ▼
-LangGraph pipeline
-  collect_context → generate_script → synthesize_audio → publish_result
+Generation pipeline
+  build_context_pack → generate_script (Bedrock) → synthesize_audio (OpenAI TTS + ffmpeg) → publish_to_s3
         │
         ▼
 S3 MP3 + GitHub comment or Actions artifact
@@ -91,76 +93,18 @@ Before running non dry-run generation, follow the one-time setup in [`SETUP.md`]
 
 The workflow is intentionally manual and owner guarded. It checks out Repocaster separately from the target repository, so `repository` can point at another `owner/name` repo when you want to generate a briefing for something other than `time4116/repocaster`. Set `pull_request` to a PR number or GitHub PR URL when you want the briefing grounded in a specific proposed change.
 
-```yaml
-name: Repocaster
+The full definition lives at [`.github/workflows/repocaster.yml`](.github/workflows/repocaster.yml). Inputs:
 
-on:
-  workflow_dispatch:
-    inputs:
-      repository:
-        description: "Repository to analyze, owner/name. Defaults to this repo."
-        required: false
-        default: ""
-      ref:
-        description: "Optional branch, tag, or SHA to analyze. Defaults to the repository default ref."
-        required: false
-        default: ""
-      mode:
-        description: "architecture or focus"
-        required: false
-        default: "architecture"
-      focus:
-        description: "Optional focus topic, e.g. how LangChain is used"
-        required: false
-        default: ""
-      pull_request:
-        description: "Optional pull request number or URL to ground the briefing"
-        required: false
-        default: ""
+| Input | Default | Description |
+|---|---|---|
+| `repository` | this repo | Repository to analyze, `owner/name` |
+| `ref` | default ref | Branch, tag, or SHA to analyze |
+| `mode` | `architecture` | `architecture` or `focus` |
+| `focus` | empty | Focus topic, e.g. "how LangChain is used" |
+| `pull_request` | empty | PR number or URL to ground the briefing |
+| `dry_run` | `true` | Build context only; skip Bedrock, OpenAI, and AWS credentials |
 
-jobs:
-  repocaster:
-    if: github.actor == 'time4116'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Checkout Repocaster
-        uses: actions/checkout@v4
-        with:
-          path: repocaster-action
-      - name: Checkout target repository
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ inputs.repository || github.repository }}
-          ref: ${{ inputs.ref }}
-          path: target-repo
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - run: pip install -e repocaster-action
-      - run: |
-          args=(
-            --repo "$GITHUB_WORKSPACE/target-repo"
-            --mode "$REPOCASTER_MODE"
-            --output output/repocaster.mp3
-          )
-          if [ -n "$REPOCASTER_FOCUS" ]; then
-            args+=(--focus "$REPOCASTER_FOCUS")
-          fi
-          if [ -n "$REPOCASTER_PR" ]; then
-            args+=(--pull-request "$REPOCASTER_PR")
-          fi
-          repocaster "${args[@]}"
-        env:
-          REPOCASTER_MODE: ${{ inputs.mode }}
-          REPOCASTER_FOCUS: ${{ inputs.focus }}
-          REPOCASTER_PR: ${{ inputs.pull_request }}
-          AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
-          BEDROCK_MODEL_ID: ${{ secrets.BEDROCK_MODEL_ID }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-```
+The job is guarded by `github.actor == 'time4116'`, installs ffmpeg and assumes the AWS OIDC role only when `dry_run` is `false`, and always uploads the `output/` directory as a workflow artifact. TTS model and voices come from repository variables (`OPENAI_TTS_MODEL`, `OPENAI_TTS_VOICE_A`, `OPENAI_TTS_VOICE_B`) with defaults `tts-1-hd`, `nova`, and `shimmer`.
 
 ## Running locally
 

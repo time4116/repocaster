@@ -14,7 +14,7 @@ GitHub App webhook     GitHub Actions workflow
         S3 output + GitHub response
 ```
 
-## GitHub App mode
+## GitHub App mode (target design, partially built)
 
 ```text
 Issue/PR comment: /podcast [focus <topic>]
@@ -38,10 +38,15 @@ Worker Lambda
   - fetch installation token
   - scan repository
   - build context pack
-  - run LangGraph pipeline
+  - run the generation pipeline
   - upload MP3 to S3
   - post GitHub comment
 ```
+
+Status: the webhook Lambda (HMAC verification, command parsing, repo and author
+allowlists) is implemented in `src/repocaster/github_app/webhook.py`. The quota
+check, SQS queue, and worker Lambda are not built yet; accepted commands are
+acknowledged and dropped.
 
 ## Manual workflow mode
 
