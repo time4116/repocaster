@@ -134,7 +134,7 @@ def build_context_pack(
     root = Path(repo_path).resolve()
     candidates: list[ContextFile] = list(extra_files)
     for path in root.rglob("*"):
-        if not path.is_file() or _ignored(path, root):
+        if path.is_symlink() or not path.is_file() or _ignored(path, root):
             continue
         content = _safe_read(path, settings.max_file_chars)
         if content is None:
