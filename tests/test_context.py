@@ -33,6 +33,22 @@ def test_context_ignores_secrets_and_media(tmp_path: Path):
     assert "podcast.mp3" not in paths
 
 
+def test_context_ignores_symlinks_that_leave_repo(tmp_path: Path):
+    outside = tmp_path.parent / "outside-secret.txt"
+    outside.write_text("OPENAI_API_KEY=secret", encoding="utf-8")
+    (tmp_path / "README.md").write_text("safe", encoding="utf-8")
+    (tmp_path / "linked-secret.txt").symlink_to(outside)
+    settings = Settings(allowed_repos=("*",), allowed_users=("*",))
+
+    pack = build_context_pack(tmp_path, "architecture", None, settings)
+
+    paths = {item.path for item in pack.files}
+    rendered = pack.render()
+    assert "README.md" in paths
+    assert "linked-secret.txt" not in paths
+    assert "OPENAI_API_KEY" not in rendered
+
+
 def test_context_pack_prioritizes_pull_request_summary(tmp_path: Path):
     (tmp_path / "README.md").write_text("General repo docs", encoding="utf-8")
     (tmp_path / "src").mkdir()
