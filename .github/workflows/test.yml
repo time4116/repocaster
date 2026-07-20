@@ -18,6 +18,7 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install -e .[dev]
+      - run: python -m pip install --upgrade 'setuptools>=83.0.0'
       - run: pytest -q
       - run: python -m compileall -q src tests scripts
       - run: bandit -q -r src scripts -x tests

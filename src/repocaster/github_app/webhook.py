@@ -66,7 +66,12 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         return {"statusCode": 401, "body": json.dumps({"error": "invalid signature"})}
     if event_name != "issue_comment":
         return {"statusCode": 202, "body": json.dumps({"message": "ignored event"})}
-    result = handle_issue_comment(json.loads(body), Settings.from_env())
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError:
+        return {"statusCode": 400, "body": json.dumps({"error": "invalid request body"})}
+
+    result = handle_issue_comment(payload, Settings.from_env())
     if result and result.get("accepted"):
         # TODO: enqueue to SQS after CDK stack is added.
         return {"statusCode": 202, "body": json.dumps({"message": "accepted", "job": result})}
