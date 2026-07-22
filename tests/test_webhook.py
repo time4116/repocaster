@@ -120,6 +120,24 @@ def test_lambda_handler_rejects_invalid_base64_event_body(monkeypatch):
     assert response["statusCode"] == 400
 
 
+def test_lambda_handler_rejects_signed_malformed_json(monkeypatch):
+    monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", "webhook-secret")
+    body = '{"repository": '
+    response = lambda_handler(
+        {
+            "body": body,
+            "headers": {
+                "X-GitHub-Event": "issue_comment",
+                "X-Hub-Signature-256": _signature(body, "webhook-secret"),
+            },
+        },
+        None,
+    )
+
+    assert response["statusCode"] == 400
+    assert json.loads(response["body"])["error"] == "invalid JSON payload"
+
+
 def test_handle_issue_comment_accepts_allowed_command():
     payload = {
         "repository": {"full_name": "time4116/repocaster"},
