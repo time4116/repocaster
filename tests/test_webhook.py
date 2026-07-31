@@ -78,6 +78,32 @@ def test_lambda_handler_accepts_lowercase_github_headers(monkeypatch):
     assert response["statusCode"] == 202
 
 
+def test_lambda_handler_accepts_mixed_case_gateway_headers(monkeypatch):
+    monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", "webhook-secret")
+    monkeypatch.setenv("ALLOWED_REPOS", "time4116/repocaster")
+    monkeypatch.setenv("ALLOWED_USERS", "time4116")
+    body = json.dumps(
+        {
+            "repository": {"full_name": "time4116/repocaster"},
+            "comment": {"body": "/podcast", "user": {"login": "time4116"}},
+        }
+    )
+    response = lambda_handler(
+        {
+            "body": body,
+            "headers": {
+                "X-Github-Event": "issue_comment",
+                "X-Hub-Signature-256": _signature(body, "webhook-secret"),
+            },
+        },
+        None,
+    )
+
+    assert response["statusCode"] == 202
+    payload = json.loads(response["body"])
+    assert payload["message"] == "accepted"
+
+
 def test_lambda_handler_decodes_base64_event_body_before_verifying_signature(monkeypatch):
     monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", "webhook-secret")
     monkeypatch.setenv("ALLOWED_REPOS", "time4116/repocaster")
