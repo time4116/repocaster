@@ -25,6 +25,16 @@ def event_body(event: dict[str, Any]) -> str:
     return body
 
 
+def _header(headers: dict[str, Any], name: str) -> str:
+    """Return a header value without trusting gateway-specific casing."""
+
+    needle = name.lower()
+    for key, value in headers.items():
+        if key.lower() == needle:
+            return str(value)
+    return ""
+
+
 def handle_issue_comment(payload: dict[str, Any], settings: Settings) -> dict[str, Any] | None:
     repo = payload.get("repository", {}).get("full_name", "")
     user = payload.get("comment", {}).get("user", {}).get("login", "")
@@ -54,8 +64,8 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     except (ValueError, UnicodeDecodeError):
         return {"statusCode": 400, "body": json.dumps({"error": "invalid request body"})}
     headers = event.get("headers") or {}
-    event_name = headers.get("x-github-event") or headers.get("X-GitHub-Event")
-    signature = headers.get("x-hub-signature-256") or headers.get("X-Hub-Signature-256") or ""
+    event_name = _header(headers, "x-github-event")
+    signature = _header(headers, "x-hub-signature-256")
     webhook_secret = os.environ.get("GITHUB_WEBHOOK_SECRET", "")
     if not webhook_secret:
         return {
