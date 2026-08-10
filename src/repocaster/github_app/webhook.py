@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import hmac
 import json
@@ -21,7 +22,7 @@ def verify_signature(payload: str, signature: str, secret: str) -> bool:
 def event_body(event: dict[str, Any]) -> str:
     body = event.get("body") or "{}"
     if event.get("isBase64Encoded"):
-        return base64.b64decode(body).decode("utf-8")
+        return base64.b64decode(body, validate=True).decode("utf-8")
     return body
 
 
@@ -61,7 +62,7 @@ def handle_issue_comment(payload: dict[str, Any], settings: Settings) -> dict[st
 def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     try:
         body = event_body(event)
-    except (ValueError, UnicodeDecodeError):
+    except (binascii.Error, ValueError, UnicodeDecodeError):
         return {"statusCode": 400, "body": json.dumps({"error": "invalid request body"})}
     headers = event.get("headers") or {}
     event_name = _header(headers, "x-github-event")

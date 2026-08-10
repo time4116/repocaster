@@ -146,6 +146,22 @@ def test_lambda_handler_rejects_invalid_base64_event_body(monkeypatch):
     assert response["statusCode"] == 400
 
 
+def test_lambda_handler_rejects_non_alphabet_base64_event_body(monkeypatch):
+    monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", "webhook-secret")
+    response = lambda_handler(
+        {
+            "body": "!!!!",
+            "isBase64Encoded": True,
+            "headers": {
+                "X-GitHub-Event": "issue_comment",
+                "X-Hub-Signature-256": "sha256=ignored",
+            },
+        },
+        None,
+    )
+    assert response["statusCode"] == 400
+
+
 def test_lambda_handler_rejects_signed_malformed_json(monkeypatch):
     monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", "webhook-secret")
     body = '{"repository": '
