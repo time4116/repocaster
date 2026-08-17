@@ -37,6 +37,9 @@ def _header(headers: dict[str, Any], name: str) -> str:
 
 
 def handle_issue_comment(payload: dict[str, Any], settings: Settings) -> dict[str, Any] | None:
+    action = payload.get("action")
+    if action is not None and action != "created":
+        return None
     repo = payload.get("repository", {}).get("full_name", "")
     user = payload.get("comment", {}).get("user", {}).get("login", "")
     body = payload.get("comment", {}).get("body", "")
