@@ -182,6 +182,7 @@ def test_lambda_handler_rejects_signed_malformed_json(monkeypatch):
 
 def test_handle_issue_comment_accepts_allowed_command():
     payload = {
+        "action": "created",
         "repository": {"full_name": "time4116/repocaster"},
         "comment": {"body": "/podcast focus langchain", "user": {"login": "time4116"}},
     }
@@ -190,6 +191,18 @@ def test_handle_issue_comment_accepts_allowed_command():
     assert result is not None
     assert result["accepted"] is True
     assert result["command"]["mode"] == "focus"
+
+
+def test_handle_issue_comment_ignores_edited_or_deleted_comment_actions():
+    settings = Settings(allowed_repos=("time4116/repocaster",), allowed_users=("time4116",))
+    base_payload = {
+        "repository": {"full_name": "time4116/repocaster"},
+        "comment": {"body": "/podcast focus langchain", "user": {"login": "time4116"}},
+    }
+
+    for action in ("edited", "deleted"):
+        payload = {**base_payload, "action": action}
+        assert handle_issue_comment(payload, settings) is None
 
 
 def test_handle_issue_comment_marks_pr_comments_for_pr_focused_generation():
