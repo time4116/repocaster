@@ -84,6 +84,12 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         payload = json.loads(body)
     except json.JSONDecodeError:
         return {"statusCode": 400, "body": json.dumps({"error": "invalid JSON payload"})}
+    action = payload.get("action")
+    if action != "created":
+        return {
+            "statusCode": 202,
+            "body": json.dumps({"message": "ignored event action", "action": action}),
+        }
     result = handle_issue_comment(payload, Settings.from_env())
     if result and result.get("accepted"):
         # TODO: enqueue to SQS after CDK stack is added.
