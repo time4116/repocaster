@@ -61,6 +61,7 @@ def test_lambda_handler_accepts_lowercase_github_headers(monkeypatch):
     monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", "webhook-secret")
     body = json.dumps(
         {
+            "action": "created",
             "repository": {"full_name": "time4116/repocaster"},
             "comment": {"body": "/podcast", "user": {"login": "time4116"}},
         }
@@ -84,6 +85,7 @@ def test_lambda_handler_accepts_mixed_case_gateway_headers(monkeypatch):
     monkeypatch.setenv("ALLOWED_USERS", "time4116")
     body = json.dumps(
         {
+            "action": "created",
             "repository": {"full_name": "time4116/repocaster"},
             "comment": {"body": "/podcast", "user": {"login": "time4116"}},
         }
@@ -110,6 +112,7 @@ def test_lambda_handler_decodes_base64_event_body_before_verifying_signature(mon
     monkeypatch.setenv("ALLOWED_USERS", "time4116")
     body = json.dumps(
         {
+            "action": "created",
             "repository": {"full_name": "time4116/repocaster"},
             "comment": {"body": "/podcast", "user": {"login": "time4116"}},
         }
@@ -178,6 +181,35 @@ def test_lambda_handler_rejects_signed_malformed_json(monkeypatch):
 
     assert response["statusCode"] == 400
     assert json.loads(response["body"])["error"] == "invalid JSON payload"
+
+
+def test_lambda_handler_ignores_non_created_issue_comment_actions(monkeypatch):
+    monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", "webhook-secret")
+    monkeypatch.setenv("ALLOWED_REPOS", "time4116/repocaster")
+    monkeypatch.setenv("ALLOWED_USERS", "time4116")
+    body = json.dumps(
+        {
+            "action": "edited",
+            "repository": {"full_name": "time4116/repocaster"},
+            "comment": {"body": "/podcast", "user": {"login": "time4116"}},
+        }
+    )
+
+    response = lambda_handler(
+        {
+            "body": body,
+            "headers": {
+                "X-GitHub-Event": "issue_comment",
+                "X-Hub-Signature-256": _signature(body, "webhook-secret"),
+            },
+        },
+        None,
+    )
+
+    assert response["statusCode"] == 202
+    payload = json.loads(response["body"])
+    assert payload["message"] == "ignored event action"
+    assert payload["action"] == "edited"
 
 
 def test_handle_issue_comment_accepts_allowed_command():

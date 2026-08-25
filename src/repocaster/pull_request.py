@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import shutil
+
 # git is invoked with fixed argument vectors, never shell=True.
 import subprocess  # nosec B404
 from pathlib import Path
