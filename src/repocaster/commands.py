@@ -11,7 +11,7 @@ class PodcastCommand:
 
 def parse_podcast_command(body: str) -> PodcastCommand | None:
     stripped = body.strip()
-    if not stripped.startswith("/podcast"):
+    if stripped != "/podcast" and not stripped.startswith("/podcast "):
         return None
 
     rest = stripped[len("/podcast") :].strip()
