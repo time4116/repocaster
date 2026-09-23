@@ -17,3 +17,8 @@ def test_parse_focus_command():
 
 def test_ignore_non_podcast_comment():
     assert parse_podcast_command("looks good") is None
+
+
+def test_ignore_commands_that_only_share_the_podcast_prefix():
+    assert parse_podcast_command("/podcasting") is None
+    assert parse_podcast_command("/podcastify focus architecture") is None
