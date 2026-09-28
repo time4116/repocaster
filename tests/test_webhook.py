@@ -4,11 +4,18 @@ import hmac
 import json
 
 from repocaster.config import Settings
-from repocaster.github_app.webhook import handle_issue_comment, lambda_handler, verify_signature
+from repocaster.github_app.webhook import (
+    handle_issue_comment,
+    lambda_handler,
+    verify_signature,
+)
 
 
 def _signature(payload: str, secret: str) -> str:
-    return "sha256=" + hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    return (
+        "sha256="
+        + hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    )
 
 
 def test_verify_signature_accepts_valid_hmac():
@@ -106,7 +113,35 @@ def test_lambda_handler_accepts_mixed_case_gateway_headers(monkeypatch):
     assert payload["message"] == "accepted"
 
 
-def test_lambda_handler_decodes_base64_event_body_before_verifying_signature(monkeypatch):
+def test_lambda_handler_rejects_duplicate_signature_header_casing(monkeypatch):
+    monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", "webhook-secret")
+    monkeypatch.setenv("ALLOWED_REPOS", "time4116/repocaster")
+    monkeypatch.setenv("ALLOWED_USERS", "time4116")
+    body = json.dumps(
+        {
+            "action": "created",
+            "repository": {"full_name": "time4116/repocaster"},
+            "comment": {"body": "/podcast", "user": {"login": "time4116"}},
+        }
+    )
+    response = lambda_handler(
+        {
+            "body": body,
+            "headers": {
+                "X-GitHub-Event": "issue_comment",
+                "X-Hub-Signature-256": _signature(body, "webhook-secret"),
+                "x-hub-signature-256": "sha256=invalid",
+            },
+        },
+        None,
+    )
+
+    assert response["statusCode"] == 401
+
+
+def test_lambda_handler_decodes_base64_event_body_before_verifying_signature(
+    monkeypatch,
+):
     monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", "webhook-secret")
     monkeypatch.setenv("ALLOWED_REPOS", "time4116/repocaster")
     monkeypatch.setenv("ALLOWED_USERS", "time4116")
@@ -218,7 +253,9 @@ def test_handle_issue_comment_accepts_allowed_command():
         "repository": {"full_name": "time4116/repocaster"},
         "comment": {"body": "/podcast focus langchain", "user": {"login": "time4116"}},
     }
-    settings = Settings(allowed_repos=("time4116/repocaster",), allowed_users=("time4116",))
+    settings = Settings(
+        allowed_repos=("time4116/repocaster",), allowed_users=("time4116",)
+    )
     result = handle_issue_comment(payload, settings)
     assert result is not None
     assert result["accepted"] is True
@@ -226,7 +263,9 @@ def test_handle_issue_comment_accepts_allowed_command():
 
 
 def test_handle_issue_comment_ignores_edited_or_deleted_comment_actions():
-    settings = Settings(allowed_repos=("time4116/repocaster",), allowed_users=("time4116",))
+    settings = Settings(
+        allowed_repos=("time4116/repocaster",), allowed_users=("time4116",)
+    )
     base_payload = {
         "repository": {"full_name": "time4116/repocaster"},
         "comment": {"body": "/podcast focus langchain", "user": {"login": "time4116"}},
@@ -240,10 +279,15 @@ def test_handle_issue_comment_ignores_edited_or_deleted_comment_actions():
 def test_handle_issue_comment_marks_pr_comments_for_pr_focused_generation():
     payload = {
         "repository": {"full_name": "time4116/repocaster"},
-        "issue": {"number": 17, "pull_request": {"url": "https://api.github.com/pr/17"}},
+        "issue": {
+            "number": 17,
+            "pull_request": {"url": "https://api.github.com/pr/17"},
+        },
         "comment": {"body": "/podcast", "user": {"login": "time4116"}},
     }
-    settings = Settings(allowed_repos=("time4116/repocaster",), allowed_users=("time4116",))
+    settings = Settings(
+        allowed_repos=("time4116/repocaster",), allowed_users=("time4116",)
+    )
     result = handle_issue_comment(payload, settings)
     assert result is not None
     assert result["accepted"] is True
@@ -255,7 +299,9 @@ def test_handle_issue_comment_rejects_unallowed_user():
         "repository": {"full_name": "time4116/repocaster"},
         "comment": {"body": "/podcast", "user": {"login": "someone"}},
     }
-    settings = Settings(allowed_repos=("time4116/repocaster",), allowed_users=("time4116",))
+    settings = Settings(
+        allowed_repos=("time4116/repocaster",), allowed_users=("time4116",)
+    )
     result = handle_issue_comment(payload, settings)
     assert result is not None
     assert result["accepted"] is False
