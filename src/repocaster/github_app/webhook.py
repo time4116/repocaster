@@ -27,13 +27,13 @@ def event_body(event: dict[str, Any]) -> str:
 
 
 def _header(headers: dict[str, Any], name: str) -> str:
-    """Return a header value without trusting gateway-specific casing."""
+    """Return a single header value without trusting gateway-specific casing."""
 
     needle = name.lower()
-    for key, value in headers.items():
-        if key.lower() == needle:
-            return str(value)
-    return ""
+    matches = [str(value) for key, value in headers.items() if key.lower() == needle]
+    if len(matches) != 1:
+        return ""
+    return matches[0]
 
 
 def handle_issue_comment(payload: dict[str, Any], settings: Settings) -> dict[str, Any] | None:
@@ -66,7 +66,10 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     try:
         body = event_body(event)
     except (binascii.Error, ValueError, UnicodeDecodeError):
-        return {"statusCode": 400, "body": json.dumps({"error": "invalid request body"})}
+        return {
+            "statusCode": 400,
+            "body": json.dumps({"error": "invalid request body"}),
+        }
     headers = event.get("headers") or {}
     event_name = _header(headers, "x-github-event")
     signature = _header(headers, "x-hub-signature-256")
@@ -83,7 +86,10 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     try:
         payload = json.loads(body)
     except json.JSONDecodeError:
-        return {"statusCode": 400, "body": json.dumps({"error": "invalid JSON payload"})}
+        return {
+            "statusCode": 400,
+            "body": json.dumps({"error": "invalid JSON payload"}),
+        }
     action = payload.get("action")
     if action != "created":
         return {
@@ -93,5 +99,11 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     result = handle_issue_comment(payload, Settings.from_env())
     if result and result.get("accepted"):
         # TODO: enqueue to SQS after CDK stack is added.
-        return {"statusCode": 202, "body": json.dumps({"message": "accepted", "job": result})}
-    return {"statusCode": 202, "body": json.dumps({"message": "ignored", "result": result})}
+        return {
+            "statusCode": 202,
+            "body": json.dumps({"message": "accepted", "job": result}),
+        }
+    return {
+        "statusCode": 202,
+        "body": json.dumps({"message": "ignored", "result": result}),
+    }
