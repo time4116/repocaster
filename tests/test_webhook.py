@@ -12,10 +12,7 @@ from repocaster.github_app.webhook import (
 
 
 def _signature(payload: str, secret: str) -> str:
-    return (
-        "sha256="
-        + hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
-    )
+    return "sha256=" + hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
 
 
 def test_verify_signature_accepts_valid_hmac():
@@ -253,9 +250,7 @@ def test_handle_issue_comment_accepts_allowed_command():
         "repository": {"full_name": "time4116/repocaster"},
         "comment": {"body": "/podcast focus langchain", "user": {"login": "time4116"}},
     }
-    settings = Settings(
-        allowed_repos=("time4116/repocaster",), allowed_users=("time4116",)
-    )
+    settings = Settings(allowed_repos=("time4116/repocaster",), allowed_users=("time4116",))
     result = handle_issue_comment(payload, settings)
     assert result is not None
     assert result["accepted"] is True
@@ -263,9 +258,7 @@ def test_handle_issue_comment_accepts_allowed_command():
 
 
 def test_handle_issue_comment_ignores_edited_or_deleted_comment_actions():
-    settings = Settings(
-        allowed_repos=("time4116/repocaster",), allowed_users=("time4116",)
-    )
+    settings = Settings(allowed_repos=("time4116/repocaster",), allowed_users=("time4116",))
     base_payload = {
         "repository": {"full_name": "time4116/repocaster"},
         "comment": {"body": "/podcast focus langchain", "user": {"login": "time4116"}},
@@ -285,9 +278,7 @@ def test_handle_issue_comment_marks_pr_comments_for_pr_focused_generation():
         },
         "comment": {"body": "/podcast", "user": {"login": "time4116"}},
     }
-    settings = Settings(
-        allowed_repos=("time4116/repocaster",), allowed_users=("time4116",)
-    )
+    settings = Settings(allowed_repos=("time4116/repocaster",), allowed_users=("time4116",))
     result = handle_issue_comment(payload, settings)
     assert result is not None
     assert result["accepted"] is True
@@ -299,9 +290,7 @@ def test_handle_issue_comment_rejects_unallowed_user():
         "repository": {"full_name": "time4116/repocaster"},
         "comment": {"body": "/podcast", "user": {"login": "someone"}},
     }
-    settings = Settings(
-        allowed_repos=("time4116/repocaster",), allowed_users=("time4116",)
-    )
+    settings = Settings(allowed_repos=("time4116/repocaster",), allowed_users=("time4116",))
     result = handle_issue_comment(payload, settings)
     assert result is not None
     assert result["accepted"] is False

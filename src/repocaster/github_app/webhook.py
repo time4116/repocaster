@@ -15,10 +15,7 @@ from repocaster.config import Settings, repo_allowed, user_allowed
 def verify_signature(payload: str, signature: str, secret: str) -> bool:
     if not signature.startswith("sha256="):
         return False
-    expected = (
-        "sha256="
-        + hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
-    )
+    expected = "sha256=" + hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, signature)
 
 
@@ -39,9 +36,7 @@ def _header(headers: dict[str, Any], name: str) -> str:
     return matches[0]
 
 
-def handle_issue_comment(
-    payload: dict[str, Any], settings: Settings
-) -> dict[str, Any] | None:
+def handle_issue_comment(payload: dict[str, Any], settings: Settings) -> dict[str, Any] | None:
     action = payload.get("action")
     if action is not None and action != "created":
         return None
