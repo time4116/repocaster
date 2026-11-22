@@ -8,7 +8,7 @@ import subprocess  # nosec B404
 from pathlib import Path
 
 from .config import Settings
-from .context import ContextFile
+from .context import ContextFile, _ignored
 
 _PR_URL_RE = re.compile(r"github\.com/[^/]+/[^/]+/pull/(\d+)(?:\b|[/?#])")
 
@@ -41,15 +41,18 @@ def collect_pull_request_context(
     head_ref = f"refs/remotes/origin/pr-{number}"
     merge_base = _git(root, "merge-base", base_ref, head_ref).strip()
     head_sha = _git(root, "rev-parse", "--short", head_ref).strip()
-    stat = _git(root, "diff", "--stat", f"{merge_base}...{head_ref}").strip()
-    files = _git(root, "diff", "--name-status", f"{merge_base}...{head_ref}").strip()
-    diff = _git(
-        root,
-        "diff",
-        "--find-renames",
-        "--unified=80",
-        f"{merge_base}...{head_ref}",
-    )
+    revision = f"{merge_base}...{head_ref}"
+    # Select paths before producing any diff text: a PR may contain committed secrets
+    # that are absent from the checked-out working tree.
+    changed = _git(root, "diff", "--no-renames", "--name-only", "-z", revision)
+    safe_paths = [name for name in changed.split("\0") if name and not _ignored(root / name, root)]
+    if safe_paths:
+        args = ("--no-renames", revision, "--", *(f":(literal){name}" for name in safe_paths))
+        stat = _git(root, "diff", "--stat", *args).strip()
+        files = _git(root, "diff", "--name-status", *args).strip()
+        diff = _git(root, "diff", "--unified=80", *args)
+    else:
+        stat = files = diff = ""
     remaining = max(settings.max_file_chars - 600, 1_000)
     if len(diff) > remaining:
         diff = diff[:remaining] + "\n\n[diff truncated for podcast context]\n"

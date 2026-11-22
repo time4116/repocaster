@@ -23,6 +23,33 @@ IGNORE_DIRS = {
     ".venv",
     "venv",
     "cdk.out",
+    ".aws",
+    ".ssh",
+    ".azure",
+    ".kube",
+    ".docker",
+    ".gnupg",
+    ".terraform",
+    "gcloud",
+}
+SECRET_NAMES = {
+    ".npmrc",
+    ".pypirc",
+    ".netrc",
+    ".authinfo",
+    ".htpasswd",
+    "credentials",
+    "credentials.json",
+    "credentials.yaml",
+    "credentials.yml",
+    "secrets.json",
+    "secrets.yaml",
+    "secrets.yml",
+    "secrets.toml",
+    "id_rsa",
+    "id_ed25519",
+    "id_ecdsa",
+    "id_dsa",
 }
 IGNORE_GLOBS = {
     "*.mp3",
@@ -36,6 +63,17 @@ IGNORE_GLOBS = {
     "*.pdf",
     "*.pem",
     "*.key",
+    "*.p12",
+    "*.pfx",
+    "*.jks",
+    "*.keystore",
+    "*.tfstate",
+    "*.tfstate.*",
+    "*.tfvars",
+    "*.tfvars.json",
+    "*.tfplan",
+    "*.tfplan.*",
+    "terraform.plan",
     "*.egg-info/*",
     ".env",
     ".env.*",
@@ -78,12 +116,24 @@ class ContextPack:
 
 def _ignored(path: Path, root: Path) -> bool:
     rel = path.relative_to(root)
-    if any(part in IGNORE_DIRS for part in rel.parts):
+    if ".." in rel.parts or any(part in IGNORE_DIRS for part in rel.parts[:-1]):
         return True
+    if any(
+        part == ".config" and rel.parts[index + 1] in {"gh", "gcloud", "azure", "aws", "docker"}
+        for index, part in enumerate(rel.parts[:-2])
+    ):
+        return True
+    name = path.name.lower()
+    if (
+        name in SECRET_NAMES
+        or name.endswith(".git-credentials")
+        or name.startswith((".git-credentials.", ".git-credentials-"))
+    ):
+        return True
+    if name == ".env.example" or name.endswith(".tfvars.example"):
+        return False
     rel_str = str(rel)
-    return any(
-        fnmatch.fnmatch(rel_str, pat) or fnmatch.fnmatch(path.name, pat) for pat in IGNORE_GLOBS
-    )
+    return any(fnmatch.fnmatch(rel_str, pat) or fnmatch.fnmatch(name, pat) for pat in IGNORE_GLOBS)
 
 
 def _safe_read(path: Path, max_chars: int) -> str | None:
@@ -132,7 +182,13 @@ def build_context_pack(
     extra_files: tuple[ContextFile, ...] = (),
 ) -> ContextPack:
     root = Path(repo_path).resolve()
-    candidates: list[ContextFile] = list(extra_files)
+    candidates: list[ContextFile] = [
+        item
+        for item in extra_files
+        if not Path(item.path).is_absolute()
+        and ".." not in Path(item.path).parts
+        and not _ignored(root / item.path, root)
+    ]
     for path in root.rglob("*"):
         if path.is_symlink() or not path.is_file() or _ignored(path, root):
             continue
