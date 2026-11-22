@@ -33,6 +33,70 @@ def test_context_ignores_secrets_and_media(tmp_path: Path):
     assert "podcast.mp3" not in paths
 
 
+def test_context_excludes_credential_files_without_dropping_project_files(tmp_path: Path):
+    excluded = (
+        ".npmrc",
+        ".pypirc",
+        ".netrc",
+        ".aws/credentials",
+        ".aws/config",
+        ".ssh/id_ed25519",
+        ".config/gcloud/application_default_credentials.json",
+        ".azure/accessTokens.json",
+        ".kube/config",
+        ".docker/config.json",
+        "infra/terraform.tfstate",
+        "infra/terraform.tfstate.backup",
+        "infra/prod.tfvars",
+        "infra/prod.tfvars.json",
+        "certs/server.p12",
+        "nested/.env.production",
+        "nested/secrets.yml",
+        "nested/credentials.json",
+    )
+    allowed = (
+        "README.md",
+        "package.json",
+        "src/credentials.py",
+        "infra/main.tf",
+        "infra/variables.tf",
+        "infra/terraform.tfvars.example",
+        ".env.example",
+    )
+    for name in (*excluded, *allowed):
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"fixture for {name}", encoding="utf-8")
+
+    pack = build_context_pack(
+        tmp_path,
+        "architecture",
+        "credentials",
+        Settings(
+            allowed_repos=("*",), allowed_users=("*",), max_files=100, max_context_chars=100_000
+        ),
+    )
+    paths = {item.path for item in pack.files}
+    assert paths.isdisjoint(excluded)
+    assert paths.issuperset(allowed)
+    assert all(f"fixture for {name}" not in pack.render() for name in excluded)
+
+
+def test_context_applies_secret_exclusions_to_extra_files(tmp_path: Path):
+    pack = build_context_pack(
+        tmp_path,
+        "focus",
+        None,
+        Settings(allowed_repos=("*",), allowed_users=("*",)),
+        extra_files=(
+            ContextFile(".aws/credentials", "SENTINEL_SECRET", 1_000),
+            ContextFile("notes.md", "useful context", 900),
+        ),
+    )
+    assert [item.path for item in pack.files] == ["notes.md"]
+    assert "SENTINEL_SECRET" not in pack.render()
+
+
 def test_context_ignores_symlinks_that_leave_repo(tmp_path: Path):
     outside = tmp_path.parent / "outside-secret.txt"
     outside.write_text("OPENAI_API_KEY=secret", encoding="utf-8")

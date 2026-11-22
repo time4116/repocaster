@@ -43,7 +43,11 @@ def test_collect_pull_request_context_builds_synthetic_context_from_git_diff(tmp
 
     _git(repo, "switch", "-c", "feature/pr-podcast")
     (repo / "README.md").write_text("# Demo\n\nPR focused podcast.\n", encoding="utf-8")
-    _git(repo, "add", "README.md")
+    (repo / ".npmrc").write_text("SENTINEL_NPM_CREDENTIAL", encoding="utf-8")
+    (repo / ".aws").mkdir()
+    (repo / ".aws" / "credentials").write_text("SENTINEL_AWS_CREDENTIAL", encoding="utf-8")
+    (repo / ":(glob)*").write_text("safe unusual filename", encoding="utf-8")
+    _git(repo, "add", "-A")
     _git(repo, "commit", "-m", "add podcast docs")
     _git(repo, "push", "origin", "HEAD:refs/pull/7/head")
 
@@ -57,3 +61,8 @@ def test_collect_pull_request_context_builds_synthetic_context_from_git_diff(tmp
     assert "Pull Request 7" in context_file.content
     assert "README.md" in context_file.content
     assert "PR focused podcast" in context_file.content
+    assert "safe unusual filename" in context_file.content
+    assert ".npmrc" not in context_file.content
+    assert ".aws/credentials" not in context_file.content
+    assert "SENTINEL_NPM_CREDENTIAL" not in context_file.content
+    assert "SENTINEL_AWS_CREDENTIAL" not in context_file.content

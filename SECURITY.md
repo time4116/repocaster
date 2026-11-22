@@ -11,7 +11,9 @@ Repocaster is designed for low cost personal use and public repo safety.
 - private S3 objects delivered through presigned URLs
 - S3 lifecycle expiration for generated media after 10 days
 - weekly execution quotas stored in S3
-- context pack file ignore rules for secrets, generated output, media, dependencies, and build artifacts
+- context pack file ignore rules for credential stores (`.aws`, `.ssh`, `.kube`, `.docker`, and similar directories), authentication dotfiles, private keys, Terraform state and variable values, generated output, media, dependencies, and build artifacts. The same path filtering applies to pull request diff excerpts and synthetic context files. Example templates such as `.env.example` and `*.tfvars.example` remain eligible.
+
+Path filtering cannot detect secrets pasted into otherwise ordinary source files, documentation, or pull request descriptions. Review repositories and diffs before sending context to Bedrock.
 
 ## Secret handling
 
