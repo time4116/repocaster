@@ -35,6 +35,18 @@ def test_context_ignores_secrets_and_media(tmp_path: Path):
 
 def test_context_excludes_credential_files_without_dropping_project_files(tmp_path: Path):
     excluded = (
+        ".git-credentials",
+        "nested/.git-credentials",
+        ".config/gh/hosts.yml",
+        "nested/.config/gh/hosts.yaml",
+        ".config/gcloud/credentials.db",
+        "nested/.config/gcloud/credentials.db",
+        ".config/azure/accessTokens.json",
+        "nested/.config/gh/hosts.yml",
+        "infra/prod.tfplan",
+        "infra/prod.tfplan.json",
+        "infra/terraform.plan",
+        "infra/terraform.tfplan",
         ".npmrc",
         ".pypirc",
         ".netrc",
@@ -60,6 +72,8 @@ def test_context_excludes_credential_files_without_dropping_project_files(tmp_pa
         "src/credentials.py",
         "infra/main.tf",
         "infra/variables.tf",
+        "infra/plan.tf",
+        "docs/terraform-plan.md",
         "infra/terraform.tfvars.example",
         ".env.example",
     )
@@ -90,6 +104,13 @@ def test_context_applies_secret_exclusions_to_extra_files(tmp_path: Path):
         Settings(allowed_repos=("*",), allowed_users=("*",)),
         extra_files=(
             ContextFile(".aws/credentials", "SENTINEL_SECRET", 1_000),
+            ContextFile("nested/.git-credentials", "SENTINEL_GIT_CREDENTIAL", 1_000),
+            ContextFile("nested/.config/gh/hosts.yml", "SENTINEL_GH_CREDENTIAL", 1_000),
+            ContextFile(
+                "nested/.config/gcloud/credentials.db", "SENTINEL_GCLOUD_CREDENTIAL", 1_000
+            ),
+            ContextFile("infra/prod.tfplan", "SENTINEL_PLAN", 1_000),
+            ContextFile("infra/terraform.plan", "SENTINEL_TERRAFORM_PLAN", 1_000),
             ContextFile("notes.md", "useful context", 900),
         ),
     )

@@ -71,6 +71,9 @@ IGNORE_GLOBS = {
     "*.tfstate.*",
     "*.tfvars",
     "*.tfvars.json",
+    "*.tfplan",
+    "*.tfplan.*",
+    "terraform.plan",
     "*.egg-info/*",
     ".env",
     ".env.*",
@@ -115,8 +118,17 @@ def _ignored(path: Path, root: Path) -> bool:
     rel = path.relative_to(root)
     if ".." in rel.parts or any(part in IGNORE_DIRS for part in rel.parts[:-1]):
         return True
+    if any(
+        part == ".config" and rel.parts[index + 1] in {"gh", "gcloud", "azure", "aws", "docker"}
+        for index, part in enumerate(rel.parts[:-2])
+    ):
+        return True
     name = path.name.lower()
-    if name in SECRET_NAMES:
+    if (
+        name in SECRET_NAMES
+        or name.endswith(".git-credentials")
+        or name.startswith((".git-credentials.", ".git-credentials-"))
+    ):
         return True
     if name == ".env.example" or name.endswith(".tfvars.example"):
         return False
