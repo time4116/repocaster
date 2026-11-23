@@ -134,6 +134,55 @@ def test_context_ignores_symlinks_that_leave_repo(tmp_path: Path):
     assert "OPENAI_API_KEY" not in rendered
 
 
+def test_context_file_reads_are_bounded(tmp_path: Path, monkeypatch):
+    large = tmp_path / "large.txt"
+    large.write_text("a" * 1_000_000, encoding="utf-8")
+    (tmp_path / "unicode.txt").write_text("🦊" * 1_000, encoding="utf-8")
+    original_open = Path.open
+    reads = []
+
+    def tracked_open(path, *args, **kwargs):
+        source = original_open(path, *args, **kwargs)
+
+        class Reader:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                source.close()
+
+            def read(self, size=-1):
+                reads.append(size)
+                assert 0 < size <= 41
+                return source.read(size)
+
+        return Reader()
+
+    monkeypatch.setattr(Path, "open", tracked_open)
+    pack = build_context_pack(
+        tmp_path,
+        "focus",
+        None,
+        Settings(allowed_repos=("*",), allowed_users=("*",), max_file_chars=10),
+    )
+    assert reads == [41, 41]
+    assert {file.path: file.content for file in pack.files} == {
+        "large.txt": "a" * 10,
+        "unicode.txt": "🦊" * 10,
+    }
+
+
+def test_context_rejects_malformed_utf8_in_small_files(tmp_path: Path):
+    (tmp_path / "invalid.txt").write_bytes(b"safe\xff")
+    pack = build_context_pack(
+        tmp_path,
+        "focus",
+        None,
+        Settings(allowed_repos=("*",), allowed_users=("*",)),
+    )
+    assert not pack.files
+
+
 def test_context_pack_prioritizes_pull_request_summary(tmp_path: Path):
     (tmp_path / "README.md").write_text("General repo docs", encoding="utf-8")
     (tmp_path / "src").mkdir()
