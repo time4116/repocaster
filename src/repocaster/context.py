@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import codecs
 import fnmatch
 import os
 import re
@@ -138,14 +139,16 @@ def _ignored(path: Path, root: Path) -> bool:
 
 def _safe_read(path: Path, max_chars: int) -> str | None:
     try:
-        raw = path.read_bytes()
-    except OSError:
-        return None
-    if b"\0" in raw[:2048]:
-        return None
-    try:
-        text = raw.decode("utf-8")
-    except UnicodeDecodeError:
+        # Four bytes per character bounds reads even for multibyte UTF-8 input.
+        # The extra byte distinguishes a complete small file from a truncated one.
+        limit = max_chars * 4 + 1
+        with path.open("rb") as source:
+            raw = source.read(limit)
+        if b"\0" in raw[:2048]:
+            return None
+        decoder = codecs.getincrementaldecoder("utf-8")()
+        text = decoder.decode(raw, final=len(raw) < limit)
+    except (OSError, UnicodeDecodeError):
         return None
     return text[:max_chars]
 
